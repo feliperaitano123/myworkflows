@@ -29,21 +29,39 @@ export const useWorkflows = () => {
     queryFn: async () => {
       if (!user?.id) return [];
       
-      const { data, error } = await supabase
+      // First, get all workflows for the user
+      const { data: workflowsData, error: workflowsError } = await supabase
         .from('workflows')
-        .select(`
-          *,
-          connections!workflows_n8n_connection_id_fkey(name)
-        `)
+        .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
-      if (error) {
-        console.error('Error fetching workflows:', error);
-        throw error;
+      if (workflowsError) {
+        console.error('Error fetching workflows:', workflowsError);
+        throw workflowsError;
       }
 
-      return data as (Workflow & { connections: { name: string } })[];
+      // Then, get all connections for the user to map connection names
+      const { data: connectionsData, error: connectionsError } = await supabase
+        .from('connections')
+        .select('id, name')
+        .eq('user_id', user.id);
+
+      if (connectionsError) {
+        console.error('Error fetching connections:', connectionsError);
+        throw connectionsError;
+      }
+
+      // Create a map of connection id to connection name
+      const connectionMap = new Map(connectionsData?.map(conn => [conn.id, conn.name]) || []);
+
+      // Combine the data
+      const workflowsWithConnections = workflowsData?.map(workflow => ({
+        ...workflow,
+        connections: { name: connectionMap.get(workflow.n8n_connection_id) || 'Unknown Connection' }
+      })) || [];
+
+      return workflowsWithConnections as (Workflow & { connections: { name: string } })[];
     },
     enabled: !!user?.id,
   });
