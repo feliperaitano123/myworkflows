@@ -1,7 +1,8 @@
 
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { LucideIcon } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { LucideIcon, LogOut } from 'lucide-react';
 
 interface HeaderProps {
   title: string;
@@ -15,6 +16,12 @@ interface HeaderProps {
 }
 
 export const Header: React.FC<HeaderProps> = ({ title, subtitle, actionButton }) => {
+  const { logout, user } = useAuth();
+
+  const handleLogout = () => {
+    logout();
+  };
+
   return (
     <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-background">
       <div className="flex flex-col justify-center gap-1">
@@ -24,8 +31,25 @@ export const Header: React.FC<HeaderProps> = ({ title, subtitle, actionButton })
         )}
       </div>
       
-      {actionButton && (
-        <div className="flex items-center">
+      <div className="flex items-center gap-3">
+        {user && (
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-muted-foreground">
+              Olá, {user.name}
+            </span>
+            <Button
+              onClick={handleLogout}
+              variant="ghost"
+              size="sm"
+              className="flex items-center gap-2"
+            >
+              <LogOut className="h-4 w-4" />
+              Sair
+            </Button>
+          </div>
+        )}
+        
+        {actionButton && (
           <Button
             onClick={actionButton.onClick}
             variant={actionButton.variant || 'default'}
@@ -34,8 +58,8 @@ export const Header: React.FC<HeaderProps> = ({ title, subtitle, actionButton })
             <actionButton.icon className="h-4 w-4" />
             {actionButton.label}
           </Button>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 };
