@@ -7,13 +7,12 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogClose } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useAlert } from '@/components/AlertProvider';
 import { 
   Plus, 
-  ChevronRight, 
   Settings, 
   Edit, 
   Trash2,
@@ -28,15 +27,15 @@ import {
   AlertCircle,
   Cable
 } from 'lucide-react';
-
-interface Connection {
-  id: string;
-  name: string;
-  url: string;
-  isActive: boolean;
-  lastUsed: string;
-  initials: string;
-}
+import { 
+  useConnections, 
+  useCreateConnection, 
+  useUpdateConnection, 
+  useDeleteConnection,
+  type Connection,
+  type CreateConnectionData,
+  type UpdateConnectionData
+} from '@/hooks/useConnections';
 
 const MyConnections = () => {
   const { showAlert } = useAlert();
@@ -44,45 +43,24 @@ const MyConnections = () => {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
   const [selectedConnection, setSelectedConnection] = useState<Connection | null>(null);
   
   const [formData, setFormData] = useState({
     name: '',
-    url: '',
-    apiKey: ''
+    n8n_url: '',
+    n8n_api_key: ''
   });
 
-  const [connections, setConnections] = useState<Connection[]>([
-    {
-      id: '1',
-      name: 'Production Server',
-      url: 'https://n8n.company.com',
-      isActive: true,
-      lastUsed: '2 hours ago',
-      initials: 'PS'
-    },
-    {
-      id: '2',
-      name: 'Development Environment',
-      url: 'https://dev-n8n.company.com',
-      isActive: true,
-      lastUsed: '1 day ago',
-      initials: 'DE'
-    },
-    {
-      id: '3',
-      name: 'Staging Server',
-      url: 'https://staging-n8n.company.com',
-      isActive: false,
-      lastUsed: '3 days ago',
-      initials: 'SS'
-    }
-  ]);
+  // React Query hooks
+  const { data: connections = [], isLoading: connectionsLoading } = useConnections();
+  const createConnectionMutation = useCreateConnection();
+  const updateConnectionMutation = useUpdateConnection();
+  const deleteConnectionMutation = useDeleteConnection();
 
   const handleAddConnection = () => {
     setIsEditing(false);
-    setFormData({ name: '', url: '', apiKey: '' });
+    setSelectedConnection(null);
+    setFormData({ name: '', n8n_url: '', n8n_api_key: '' });
     setIsModalOpen(true);
   };
 
@@ -91,8 +69,8 @@ const MyConnections = () => {
     setSelectedConnection(connection);
     setFormData({
       name: connection.name,
-      url: connection.url,
-      apiKey: '••••••••••••••••'
+      n8n_url: connection.n8n_url,
+      n8n_api_key: '••••••••••••••••'
     });
     setIsModalOpen(true);
   };
@@ -104,52 +82,73 @@ const MyConnections = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
 
-    // Simulate API call
-    setTimeout(() => {
+    try {
       if (isEditing && selectedConnection) {
-        setConnections(prev => prev.map(conn => 
-          conn.id === selectedConnection.id 
-            ? { ...conn, name: formData.name }
-            : conn
-        ));
+        const updateData: UpdateConnectionData = {
+          name: formData.name,
+        };
+        
+        // Only update API key if it's not the placeholder
+        if (formData.n8n_api_key !== '••••••••••••••••') {
+          updateData.n8n_api_key = formData.n8n_api_key;
+        }
+
+        await updateConnectionMutation.mutateAsync({
+          id: selectedConnection.id,
+          data: updateData
+        });
+
         showAlert({
           type: 'success',
-          title: 'Connection Updated',
-          message: 'Your N8N connection has been successfully updated.'
+          title: 'Conexão Atualizada',
+          message: 'Sua conexão N8N foi atualizada com sucesso.'
         });
       } else {
-        const newConnection: Connection = {
-          id: Date.now().toString(),
+        const createData: CreateConnectionData = {
           name: formData.name,
-          url: formData.url,
-          isActive: true,
-          lastUsed: 'Never',
-          initials: formData.name.split(' ').map(word => word[0]).join('').toUpperCase().slice(0, 2)
+          n8n_url: formData.n8n_url,
+          n8n_api_key: formData.n8n_api_key
         };
-        setConnections(prev => [...prev, newConnection]);
+
+        await createConnectionMutation.mutateAsync(createData);
+
         showAlert({
           type: 'success',
-          title: 'Connection Created',
-          message: 'Your N8N connection has been successfully created.'
+          title: 'Conexão Criada',
+          message: 'Sua conexão N8N foi criada com sucesso.'
         });
       }
       
-      setIsLoading(false);
       setIsModalOpen(false);
-    }, 2000);
-  };
-
-  const confirmDelete = () => {
-    if (selectedConnection) {
-      setConnections(prev => prev.filter(conn => conn.id !== selectedConnection.id));
+    } catch (error) {
       showAlert({
-        type: 'success',
-        title: 'Connection Deleted',
-        message: 'The connection has been successfully removed.'
+        type: 'error',
+        title: 'Erro',
+        message: 'Falha ao salvar a conexão. Tente novamente.'
       });
     }
+  };
+
+  const confirmDelete = async () => {
+    if (!selectedConnection) return;
+
+    try {
+      await deleteConnectionMutation.mutateAsync(selectedConnection.id);
+      
+      showAlert({
+        type: 'success',
+        title: 'Conexão Deletada',
+        message: 'A conexão foi removida com sucesso.'
+      });
+    } catch (error) {
+      showAlert({
+        type: 'error',
+        title: 'Erro',
+        message: 'Falha ao deletar a conexão. Tente novamente.'
+      });
+    }
+    
     setIsDeleteModalOpen(false);
     setSelectedConnection(null);
   };
@@ -157,18 +156,47 @@ const MyConnections = () => {
   const testConnection = () => {
     showAlert({
       type: 'success',
-      title: 'Connection Test Successful',
-      message: 'Successfully connected to your N8N instance.'
+      title: 'Teste de Conexão Bem-sucedido',
+      message: 'Conectado com sucesso à sua instância N8N.'
     });
   };
+
+  const getInitials = (name: string) => {
+    return name.split(' ').map(word => word[0]).join('').toUpperCase().slice(0, 2);
+  };
+
+  const formatLastUsed = (createdAt: string) => {
+    const date = new Date(createdAt);
+    const now = new Date();
+    const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60));
+    
+    if (diffInHours < 1) return 'Agora mesmo';
+    if (diffInHours < 24) return `${diffInHours}h atrás`;
+    const diffInDays = Math.floor(diffInHours / 24);
+    if (diffInDays < 7) return `${diffInDays}d atrás`;
+    return date.toLocaleDateString('pt-BR');
+  };
+
+  const isLoading = createConnectionMutation.isPending || updateConnectionMutation.isPending || deleteConnectionMutation.isPending;
+
+  if (connectionsLoading) {
+    return (
+      <div className="flex-1 flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
+          <p className="text-muted-foreground">Carregando conexões...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       <Header
-        title="My Connections"
-        subtitle="Manage your N8N workflow connections"
+        title="Minhas Conexões"
+        subtitle="Gerencie suas conexões de workflow N8N"
         actionButton={{
-          label: 'Add Connection',
+          label: 'Adicionar Conexão',
           icon: Plus,
           onClick: handleAddConnection
         }}
@@ -182,14 +210,14 @@ const MyConnections = () => {
                 <Cable className="h-12 w-12 text-muted-foreground" />
               </div>
               <div className="space-y-2">
-                <h2 className="text-xl font-semibold">No connections yet</h2>
+                <h2 className="text-xl font-semibold">Nenhuma conexão ainda</h2>
                 <p className="text-muted-foreground">
-                  Start by connecting your first N8N instance to begin creating workflows.
+                  Comece conectando sua primeira instância N8N para começar a criar workflows.
                 </p>
               </div>
               <Button onClick={handleAddConnection}>
                 <Plus className="h-4 w-4 mr-2" />
-                Add Your First Connection
+                Adicionar Sua Primeira Conexão
               </Button>
             </div>
           </Card>
@@ -201,26 +229,26 @@ const MyConnections = () => {
                   <div className="flex items-center gap-4">
                     <Avatar className="h-12 w-12">
                       <AvatarFallback className="bg-primary/20 text-primary font-semibold">
-                        {connection.initials}
+                        {getInitials(connection.name)}
                       </AvatarFallback>
                     </Avatar>
                     
                     <div className="space-y-1">
                       <h3 className="font-medium text-foreground">{connection.name}</h3>
-                      <p className="text-sm text-muted-foreground max-w-md truncate">{connection.url}</p>
+                      <p className="text-sm text-muted-foreground max-w-md truncate">{connection.n8n_url}</p>
                       <div className="flex items-center gap-2">
-                        <Badge variant={connection.isActive ? "default" : "secondary"} className="text-xs">
-                          {connection.isActive ? "Active" : "Inactive"}
+                        <Badge variant={connection.active ? "default" : "secondary"} className="text-xs">
+                          {connection.active ? "Ativa" : "Inativa"}
                         </Badge>
                         <span className="text-xs text-muted-foreground">
-                          Last used: {connection.lastUsed}
+                          Criada: {formatLastUsed(connection.created_at)}
                         </span>
                       </div>
                     </div>
                   </div>
                   
                   <div className="flex items-center gap-3">
-                    <div className={`h-2 w-2 rounded-full ${connection.isActive ? 'bg-green-500' : 'bg-gray-400'}`} />
+                    <div className={`h-2 w-2 rounded-full ${connection.active ? 'bg-green-500' : 'bg-gray-400'}`} />
                     
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
@@ -231,14 +259,14 @@ const MyConnections = () => {
                       <DropdownMenuContent align="end" className="bg-popover">
                         <DropdownMenuItem onClick={() => handleEditConnection(connection)}>
                           <Edit className="h-4 w-4 mr-2" />
-                          Edit
+                          Editar
                         </DropdownMenuItem>
                         <DropdownMenuItem 
                           onClick={() => handleDeleteConnection(connection)} 
                           className="text-destructive"
                         >
                           <Trash2 className="h-4 w-4 mr-2" />
-                          Delete
+                          Deletar
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -255,22 +283,22 @@ const MyConnections = () => {
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>
-              {isEditing ? "Edit Connection" : "Create New Connection"}
+              {isEditing ? "Editar Conexão" : "Criar Nova Conexão"}
             </DialogTitle>
             <DialogDescription>
               {isEditing 
-                ? "Update your N8N connection details" 
-                : "Connect your N8N instance to start creating workflows"
+                ? "Atualize os detalhes da sua conexão N8N" 
+                : "Conecte sua instância N8N para começar a criar workflows"
               }
             </DialogDescription>
           </DialogHeader>
           
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="name">Connection Name *</Label>
+              <Label htmlFor="name">Nome da Conexão *</Label>
               <Input 
                 id="name"
-                placeholder="My Production N8N"
+                placeholder="Meu N8N de Produção"
                 value={formData.name}
                 onChange={(e) => setFormData({...formData, name: e.target.value})}
                 required
@@ -278,36 +306,36 @@ const MyConnections = () => {
               {formData.name && (
                 <div className="flex items-center gap-2 text-xs">
                   <CheckCircle2 className="h-3 w-3 text-green-500" />
-                  <span className="text-muted-foreground">Valid connection name</span>
+                  <span className="text-muted-foreground">Nome válido para conexão</span>
                 </div>
               )}
             </div>
             
             {!isEditing && (
               <div className="space-y-2">
-                <Label htmlFor="url">N8N Instance URL *</Label>
+                <Label htmlFor="url">URL da Instância N8N *</Label>
                 <div className="relative">
                   <Globe className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                   <Input 
                     id="url"
-                    placeholder="https://n8n.yourcompany.com"
+                    placeholder="https://n8n.suaempresa.com"
                     className="pl-10"
-                    value={formData.url}
-                    onChange={(e) => setFormData({...formData, url: e.target.value})}
+                    value={formData.n8n_url}
+                    onChange={(e) => setFormData({...formData, n8n_url: e.target.value})}
                     required
                   />
                 </div>
                 <div className="flex items-center gap-2 text-xs">
                   <AlertCircle className="h-3 w-3 text-yellow-500" />
                   <span className="text-muted-foreground">
-                    URL cannot be changed after creation
+                    A URL não pode ser alterada após a criação
                   </span>
                 </div>
               </div>
             )}
             
             <div className="space-y-2">
-              <Label htmlFor="apiKey">N8N API Key *</Label>
+              <Label htmlFor="apiKey">Chave API N8N *</Label>
               <div className="relative">
                 <Key className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                 <Input 
@@ -315,8 +343,8 @@ const MyConnections = () => {
                   type={showPassword ? "text" : "password"}
                   placeholder="n8n_api_xxxxxxxxxxxxxxxx"
                   className="pl-10 pr-10"
-                  value={formData.apiKey}
-                  onChange={(e) => setFormData({...formData, apiKey: e.target.value})}
+                  value={formData.n8n_api_key}
+                  onChange={(e) => setFormData({...formData, n8n_api_key: e.target.value})}
                   required
                 />
                 <Button 
@@ -332,7 +360,7 @@ const MyConnections = () => {
               <div className="flex items-center gap-2 text-xs">
                 <Shield className="h-3 w-3 text-blue-500" />
                 <span className="text-muted-foreground">
-                  API key is encrypted and stored securely
+                  A chave API é criptografada e armazenada com segurança
                 </span>
               </div>
             </div>
@@ -343,25 +371,25 @@ const MyConnections = () => {
                 variant="outline" 
                 className="w-full" 
                 onClick={testConnection}
-                disabled={!formData.name || !formData.apiKey || (!formData.url && !isEditing)}
+                disabled={!formData.name || !formData.n8n_api_key || (!formData.n8n_url && !isEditing)}
               >
                 <Zap className="h-4 w-4 mr-2" />
-                Test Connection
+                Testar Conexão
               </Button>
             </div>
           </form>
           
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsModalOpen(false)}>
-              Cancel
+              Cancelar
             </Button>
             <Button 
               type="submit" 
-              disabled={isLoading || !formData.name || !formData.apiKey || (!formData.url && !isEditing)}
+              disabled={isLoading || !formData.name || !formData.n8n_api_key || (!formData.n8n_url && !isEditing)}
               onClick={handleSubmit}
             >
               {isLoading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-              {isEditing ? "Update" : "Create"} Connection
+              {isEditing ? "Atualizar" : "Criar"} Conexão
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -371,19 +399,19 @@ const MyConnections = () => {
       <AlertDialog open={isDeleteModalOpen} onOpenChange={setIsDeleteModalOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Connection</AlertDialogTitle>
+            <AlertDialogTitle>Deletar Conexão</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete "{selectedConnection?.name}"? 
-              This action cannot be undone and will affect all workflows using this connection.
+              Tem certeza de que deseja deletar "{selectedConnection?.name}"? 
+              Esta ação não pode ser desfeita e afetará todos os workflows que usam esta conexão.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction 
               onClick={confirmDelete}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              Delete Connection
+              Deletar Conexão
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
