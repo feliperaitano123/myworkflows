@@ -10,6 +10,7 @@ import Dashboard from "./pages/Dashboard";
 import MyConnections from "./pages/MyConnections";
 import Library from "./pages/Library";
 import Settings from "./pages/Settings";
+import WorkflowChat from "./pages/WorkflowChat";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -27,6 +28,7 @@ const App = () => (
               <Route path="/connections" element={<MyConnections />} />
               <Route path="/library" element={<Library />} />
               <Route path="/settings" element={<Settings />} />
+              <Route path="/workflow/:workflowId" element={<WorkflowChat />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>

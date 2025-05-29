@@ -1,6 +1,7 @@
 
 import React, { useState } from 'react';
 import { Sidebar } from './Sidebar';
+import { WorkflowProvider } from '@/contexts/WorkflowContext';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -14,11 +15,13 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   };
 
   return (
-    <div className="flex h-screen bg-background w-full">
-      <Sidebar isCollapsed={isSidebarCollapsed} onToggleCollapse={toggleSidebar} />
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {children}
+    <WorkflowProvider>
+      <div className="flex h-screen bg-background w-full">
+        <Sidebar isCollapsed={isSidebarCollapsed} onToggleCollapse={toggleSidebar} />
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {children}
+        </div>
       </div>
-    </div>
+    </WorkflowProvider>
   );
 };
