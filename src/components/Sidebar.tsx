@@ -1,10 +1,12 @@
 
-import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import React, { useState } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useWorkflows } from '@/contexts/WorkflowContext';
+import { useWorkflowsContext } from '@/contexts/WorkflowContext';
+import { useCreateWorkflow } from '@/hooks/useWorkflows';
+import { ImportWorkflowModal } from './ImportWorkflowModal';
 import { 
   BarChart3, 
   Settings, 
@@ -14,7 +16,8 @@ import {
   Bot,
   Workflow,
   Circle,
-  MessageSquare
+  MessageSquare,
+  Plus
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -47,7 +50,25 @@ const navigation = [
 
 export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggleCollapse }) => {
   const location = useLocation();
-  const { workflows, isLoading } = useWorkflows();
+  const navigate = useNavigate();
+  const { workflows, isLoading } = useWorkflowsContext();
+  const createWorkflow = useCreateWorkflow();
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+
+  const handleImportWorkflow = async (connectionId: string, workflowId: string) => {
+    try {
+      const newWorkflow = await createWorkflow.mutateAsync({
+        workflow_id: workflowId,
+        n8n_connection_id: connectionId,
+        description: `Imported workflow: ${workflowId}`,
+      });
+      
+      // Navigate to the new workflow chat page
+      navigate(`/workflow/${newWorkflow.id}`);
+    } catch (error) {
+      console.error('Error importing workflow:', error);
+    }
+  };
 
   return (
     <div
@@ -96,14 +117,34 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggleCollapse 
 
         {/* Workflows Section */}
         <div className="px-3 pt-6">
-          <div className="flex items-center gap-2 px-3 mb-3">
+          <div className="flex items-center justify-between px-3 mb-3">
             {!isCollapsed && (
               <>
-                <Workflow className="h-4 w-4 text-sidebar-foreground/60" />
-                <span className="text-xs font-semibold text-sidebar-foreground/60 uppercase tracking-wider">
-                  Workflows
-                </span>
+                <div className="flex items-center gap-2">
+                  <Workflow className="h-4 w-4 text-sidebar-foreground/60" />
+                  <span className="text-xs font-semibold text-sidebar-foreground/60 uppercase tracking-wider">
+                    Workflows
+                  </span>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 w-6 p-0 hover:bg-sidebar-accent"
+                  onClick={() => setIsImportModalOpen(true)}
+                >
+                  <Plus className="h-3 w-3" />
+                </Button>
               </>
+            )}
+            {isCollapsed && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 w-8 p-0 hover:bg-sidebar-accent justify-center"
+                onClick={() => setIsImportModalOpen(true)}
+              >
+                <Plus className="h-4 w-4" />
+              </Button>
             )}
           </div>
 
@@ -149,11 +190,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggleCollapse 
                 <div className="px-3 py-4 text-center">
                   <MessageSquare className="h-8 w-8 mx-auto text-sidebar-foreground/40 mb-2" />
                   <p className="text-xs text-sidebar-foreground/60">No workflows yet</p>
-                  <Link to="/connections">
-                    <Button variant="ghost" size="sm" className="text-xs mt-2">
-                      Add Connection
-                    </Button>
-                  </Link>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="text-xs mt-2"
+                    onClick={() => setIsImportModalOpen(true)}
+                  >
+                    Import Workflow
+                  </Button>
                 </div>
               )
             )}
@@ -176,6 +220,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggleCollapse 
           {!isCollapsed && <span>Collapse</span>}
         </Button>
       </div>
+
+      {/* Import Workflow Modal */}
+      <ImportWorkflowModal
+        open={isImportModalOpen}
+        onOpenChange={setIsImportModalOpen}
+        onImport={handleImportWorkflow}
+      />
     </div>
   );
 };

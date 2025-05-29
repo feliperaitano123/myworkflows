@@ -1,5 +1,6 @@
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState } from 'react';
+import { useWorkflows } from '@/hooks/useWorkflows';
 
 export interface Workflow {
   id: string;
@@ -21,71 +22,32 @@ interface WorkflowContextType {
 
 const WorkflowContext = createContext<WorkflowContextType | undefined>(undefined);
 
-export const useWorkflows = () => {
+export const useWorkflowsContext = () => {
   const context = useContext(WorkflowContext);
   if (!context) {
-    throw new Error('useWorkflows must be used within a WorkflowProvider');
+    throw new Error('useWorkflowsContext must be used within a WorkflowProvider');
   }
   return context;
 };
 
-// Mock data para workflows
-const mockWorkflows: Workflow[] = [
-  {
-    id: 'wf-1',
-    name: 'Email Automation',
-    connectionId: 'conn-1',
-    connectionName: 'Production N8N',
-    isActive: true,
-    lastUsed: '2 hours ago',
-    description: 'Automated email marketing campaigns'
-  },
-  {
-    id: 'wf-2',
-    name: 'Data Sync',
-    connectionId: 'conn-1',
-    connectionName: 'Production N8N',
-    isActive: true,
-    lastUsed: '1 day ago',
-    description: 'Synchronize data between systems'
-  },
-  {
-    id: 'wf-3',
-    name: 'Invoice Processing',
-    connectionId: 'conn-2',
-    connectionName: 'Dev N8N',
-    isActive: false,
-    lastUsed: '3 days ago',
-    description: 'Process and validate invoices'
-  },
-  {
-    id: 'wf-4',
-    name: 'Customer Onboarding',
-    connectionId: 'conn-1',
-    connectionName: 'Production N8N',
-    isActive: true,
-    lastUsed: '5 hours ago',
-    description: 'Automated customer onboarding flow'
-  }
-];
-
 export const WorkflowProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [workflows, setWorkflows] = useState<Workflow[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [selectedWorkflow, setSelectedWorkflow] = useState<Workflow | null>(null);
+  const { data: workflowsData, isLoading, refetch } = useWorkflows();
+
+  // Transform database workflows to match the interface
+  const workflows: Workflow[] = workflowsData?.map(workflow => ({
+    id: workflow.id,
+    name: workflow.workflow_id, // Using workflow_id as name for now
+    connectionId: workflow.n8n_connection_id,
+    connectionName: workflow.connections?.name || 'Unknown Connection',
+    isActive: true, // Default to active for now
+    lastUsed: new Date(workflow.updated_at).toLocaleDateString(),
+    description: workflow.description,
+  })) || [];
 
   const refreshWorkflows = () => {
-    setIsLoading(true);
-    // Simular carregamento
-    setTimeout(() => {
-      setWorkflows(mockWorkflows);
-      setIsLoading(false);
-    }, 1000);
+    refetch();
   };
-
-  useEffect(() => {
-    refreshWorkflows();
-  }, []);
 
   const value = {
     workflows,
