@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,8 +17,15 @@ const Register: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [validationError, setValidationError] = useState('');
-  const { register, isLoading, error, clearError } = useAuth();
+  const { user, register, isLoading, error, clearError } = useAuth();
   const navigate = useNavigate();
+
+  // Redirect if already logged in
+  useEffect(() => {
+    if (user) {
+      navigate('/', { replace: true });
+    }
+  }, [user, navigate]);
 
   const validateForm = () => {
     if (password !== confirmPassword) {
@@ -43,7 +50,7 @@ const Register: React.FC = () => {
     
     try {
       await register(email, password, name);
-      navigate('/');
+      // Navigation will happen automatically via useEffect when user state changes
     } catch (err) {
       // Error handled by context
     }

@@ -1,5 +1,5 @@
 
-import React, { useEffect } from 'react';
+import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Loader2 } from 'lucide-react';
@@ -11,15 +11,6 @@ interface ProtectedRouteProps {
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   const { user, isLoading } = useAuth();
   const location = useLocation();
-
-  // Check for user in localStorage on mount
-  useEffect(() => {
-    const savedUser = localStorage.getItem('user');
-    if (savedUser && !user) {
-      // This would trigger a re-check in the auth context
-      // For now, we'll just rely on the redirect
-    }
-  }, [user]);
 
   if (isLoading) {
     return (
