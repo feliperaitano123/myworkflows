@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useWorkflows } from '@/contexts/WorkflowContext';
+import { useWorkflowsContext } from '@/contexts/WorkflowContext';
 import { 
   Send, 
   Bot, 
@@ -26,7 +26,7 @@ interface Message {
 
 const WorkflowChat: React.FC = () => {
   const { workflowId } = useParams<{ workflowId: string }>();
-  const { workflows, selectedWorkflow, setSelectedWorkflow } = useWorkflows();
+  const { workflows, selectedWorkflow, setSelectedWorkflow } = useWorkflowsContext();
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState('');
   const [selectedModel, setSelectedModel] = useState('gpt-4');

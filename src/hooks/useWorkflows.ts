@@ -33,7 +33,7 @@ export const useWorkflows = () => {
         .from('workflows')
         .select(`
           *,
-          connections:n8n_connection_id(name)
+          connections!workflows_n8n_connection_id_fkey(name)
         `)
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
