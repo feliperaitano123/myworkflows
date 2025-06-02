@@ -6,6 +6,14 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { 
+  Sheet, 
+  SheetContent, 
+  SheetDescription, 
+  SheetHeader, 
+  SheetTitle, 
+  SheetTrigger 
+} from '@/components/ui/sheet';
 import { useWorkflowsContext } from '@/contexts/WorkflowContext';
 import { 
   Send, 
@@ -13,7 +21,10 @@ import {
   User, 
   MessageSquare, 
   Loader2,
-  Settings as SettingsIcon
+  Settings as SettingsIcon,
+  Paperclip,
+  FileText,
+  Play
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -22,6 +33,17 @@ interface Message {
   role: 'user' | 'assistant';
   content: string;
   timestamp: Date;
+  attachments?: Array<{
+    id: string;
+    name: string;
+    type: 'document' | 'execution';
+  }>;
+}
+
+interface AttachmentItem {
+  id: string;
+  name: string;
+  type: 'document' | 'execution';
 }
 
 const WorkflowChat: React.FC = () => {
@@ -32,7 +54,25 @@ const WorkflowChat: React.FC = () => {
   const [selectedModel, setSelectedModel] = useState('gpt-4');
   const [isLoading, setIsLoading] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
+  const [selectedAttachments, setSelectedAttachments] = useState<AttachmentItem[]>([]);
+  const [isAttachmentSheetOpen, setIsAttachmentSheetOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Mock data for documents and executions
+  const mockDocuments: AttachmentItem[] = [
+    { id: 'doc1', name: 'Planejamento', type: 'document' },
+    { id: 'doc2', name: 'Starter Prompt Library', type: 'document' },
+    { id: 'doc3', name: 'Metodologia', type: 'document' },
+    { id: 'doc4', name: 'Conteúdo S.A.', type: 'document' },
+    { id: 'doc5', name: 'Livros', type: 'document' },
+  ];
+
+  const mockExecutions: AttachmentItem[] = [
+    { id: 'exec1', name: 'Execution #1234', type: 'execution' },
+    { id: 'exec2', name: 'Execution #1235', type: 'execution' },
+    { id: 'exec3', name: 'Execution #1236', type: 'execution' },
+    { id: 'exec4', name: 'Execution #1237', type: 'execution' },
+  ];
 
   // Find current workflow
   const currentWorkflow = workflows.find(w => w.id === workflowId);
@@ -51,6 +91,28 @@ const WorkflowChat: React.FC = () => {
     scrollToBottom();
   }, [messages, isTyping]);
 
+  const handleAttachmentSelect = (item: AttachmentItem) => {
+    if (!selectedAttachments.find(att => att.id === item.id)) {
+      setSelectedAttachments(prev => [...prev, item]);
+      
+      // Add attachment reference to input message
+      const attachmentText = `[${item.name}]`;
+      setInputMessage(prev => prev ? `${prev} ${attachmentText}` : attachmentText);
+    }
+    setIsAttachmentSheetOpen(false);
+  };
+
+  const removeAttachment = (attachmentId: string) => {
+    const attachment = selectedAttachments.find(att => att.id === attachmentId);
+    if (attachment) {
+      setSelectedAttachments(prev => prev.filter(att => att.id !== attachmentId));
+      
+      // Remove attachment reference from input message
+      const attachmentText = `[${attachment.name}]`;
+      setInputMessage(prev => prev.replace(attachmentText, '').trim());
+    }
+  };
+
   const handleSendMessage = async () => {
     if (!inputMessage.trim() || isLoading) return;
 
@@ -58,11 +120,13 @@ const WorkflowChat: React.FC = () => {
       id: Date.now().toString(),
       role: 'user',
       content: inputMessage,
-      timestamp: new Date()
+      timestamp: new Date(),
+      attachments: selectedAttachments.length > 0 ? [...selectedAttachments] : undefined
     };
 
     setMessages(prev => [...prev, userMessage]);
     setInputMessage('');
+    setSelectedAttachments([]);
     setIsLoading(true);
     setIsTyping(true);
 
@@ -170,6 +234,23 @@ const WorkflowChat: React.FC = () => {
                       <span className="text-xs font-medium">AI Assistant</span>
                     </div>
                   )}
+                  
+                  {/* Attachments */}
+                  {message.attachments && message.attachments.length > 0 && (
+                    <div className="mb-2 space-y-1">
+                      {message.attachments.map((attachment) => (
+                        <div key={attachment.id} className="flex items-center gap-2 text-xs opacity-80">
+                          {attachment.type === 'document' ? (
+                            <FileText className="h-3 w-3" />
+                          ) : (
+                            <Play className="h-3 w-3" />
+                          )}
+                          <span>{attachment.name}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  
                   <div className="whitespace-pre-wrap text-sm">
                     {message.content}
                   </div>
@@ -219,6 +300,31 @@ const WorkflowChat: React.FC = () => {
             </Select>
           </div>
 
+          {/* Selected Attachments */}
+          {selectedAttachments.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {selectedAttachments.map((attachment) => (
+                <div 
+                  key={attachment.id}
+                  className="flex items-center gap-2 bg-secondary text-secondary-foreground px-3 py-1 rounded-full text-sm"
+                >
+                  {attachment.type === 'document' ? (
+                    <FileText className="h-3 w-3" />
+                  ) : (
+                    <Play className="h-3 w-3" />
+                  )}
+                  <span>{attachment.name}</span>
+                  <button
+                    onClick={() => removeAttachment(attachment.id)}
+                    className="ml-1 hover:bg-secondary-foreground/10 rounded-full p-0.5"
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
           {/* Message Input */}
           <div className="flex gap-4 items-end">
             <div className="flex-1 space-y-2">
@@ -228,9 +334,74 @@ const WorkflowChat: React.FC = () => {
                   value={inputMessage}
                   onChange={(e) => setInputMessage(e.target.value)}
                   onKeyDown={handleKeyDown}
-                  className="min-h-[60px] max-h-[200px] resize-none pr-12"
+                  className="min-h-[60px] max-h-[200px] resize-none pr-20"
                   maxLength={2000}
                 />
+                
+                {/* Attachment Button */}
+                <Sheet open={isAttachmentSheetOpen} onOpenChange={setIsAttachmentSheetOpen}>
+                  <SheetTrigger asChild>
+                    <Button 
+                      size="sm"
+                      variant="ghost"
+                      className="absolute bottom-2 right-12 h-8 w-8 p-0"
+                    >
+                      <Paperclip className="h-4 w-4" />
+                    </Button>
+                  </SheetTrigger>
+                  <SheetContent side="right" className="w-96">
+                    <SheetHeader>
+                      <SheetTitle>Attach Documents or Executions</SheetTitle>
+                      <SheetDescription>
+                        Select documents or workflow executions to attach to your message.
+                      </SheetDescription>
+                    </SheetHeader>
+                    
+                    <div className="mt-6 space-y-6">
+                      {/* Documents Section */}
+                      <div>
+                        <h4 className="text-sm font-medium mb-3 flex items-center gap-2">
+                          <FileText className="h-4 w-4" />
+                          Documents
+                        </h4>
+                        <div className="space-y-2">
+                          {mockDocuments.map((doc) => (
+                            <button
+                              key={doc.id}
+                              onClick={() => handleAttachmentSelect(doc)}
+                              className="w-full text-left p-3 rounded-lg border hover:bg-accent transition-colors flex items-center gap-3"
+                            >
+                              <FileText className="h-4 w-4 text-muted-foreground" />
+                              <span className="text-sm">{doc.name}</span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Executions Section */}
+                      <div>
+                        <h4 className="text-sm font-medium mb-3 flex items-center gap-2">
+                          <Play className="h-4 w-4" />
+                          Executions
+                        </h4>
+                        <div className="space-y-2">
+                          {mockExecutions.map((execution) => (
+                            <button
+                              key={execution.id}
+                              onClick={() => handleAttachmentSelect(execution)}
+                              className="w-full text-left p-3 rounded-lg border hover:bg-accent transition-colors flex items-center gap-3"
+                            >
+                              <Play className="h-4 w-4 text-muted-foreground" />
+                              <span className="text-sm">{execution.name}</span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </SheetContent>
+                </Sheet>
+
+                {/* Send Button */}
                 <Button 
                   size="sm"
                   className="absolute bottom-2 right-2 h-8 w-8 p-0"

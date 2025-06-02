@@ -39,21 +39,6 @@ export type Database = {
         }
         Relationships: []
       }
-      notes: {
-        Row: {
-          id: number
-          title: string | null
-        }
-        Insert: {
-          id?: number
-          title?: string | null
-        }
-        Update: {
-          id?: number
-          title?: string | null
-        }
-        Relationships: []
-      }
       workflows: {
         Row: {
           created_at: string | null
