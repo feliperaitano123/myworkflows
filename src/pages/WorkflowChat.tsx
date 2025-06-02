@@ -22,9 +22,10 @@ import {
   MessageSquare, 
   Loader2,
   Settings as SettingsIcon,
-  Paperclip,
+  Plus,
   FileText,
-  Play
+  Play,
+  Mic
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -51,7 +52,7 @@ const WorkflowChat: React.FC = () => {
   const { workflows, selectedWorkflow, setSelectedWorkflow } = useWorkflowsContext();
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState('');
-  const [selectedModel, setSelectedModel] = useState('gpt-4');
+  const [selectedModel, setSelectedModel] = useState('gpt-4o-mini');
   const [isLoading, setIsLoading] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
   const [selectedAttachments, setSelectedAttachments] = useState<AttachmentItem[]>([]);
@@ -282,24 +283,9 @@ const WorkflowChat: React.FC = () => {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input Area */}
-      <div className="border-t border-border p-6">
-        <div className="space-y-4">
-          {/* Model Selection */}
-          <div className="flex items-center gap-4">
-            <Label className="text-sm text-muted-foreground">Model:</Label>
-            <Select value={selectedModel} onValueChange={setSelectedModel}>
-              <SelectTrigger className="w-40 h-8">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="gpt-4">GPT-4</SelectItem>
-                <SelectItem value="gpt-3.5-turbo">GPT-3.5 Turbo</SelectItem>
-                <SelectItem value="claude-3">Claude 3</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
+      {/* Input Area - Redesigned to match the image */}
+      <div className="border-t border-border p-4">
+        <div className="space-y-3">
           {/* Selected Attachments */}
           {selectedAttachments.length > 0 && (
             <div className="flex flex-wrap gap-2">
@@ -325,103 +311,124 @@ const WorkflowChat: React.FC = () => {
             </div>
           )}
 
-          {/* Message Input */}
-          <div className="flex gap-4 items-end">
-            <div className="flex-1 space-y-2">
-              <div className="relative">
-                <Textarea 
-                  placeholder="Type your message here..."
-                  value={inputMessage}
-                  onChange={(e) => setInputMessage(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  className="min-h-[60px] max-h-[200px] resize-none pr-20"
-                  maxLength={2000}
-                />
-                
-                {/* Attachment Button */}
-                <Sheet open={isAttachmentSheetOpen} onOpenChange={setIsAttachmentSheetOpen}>
-                  <SheetTrigger asChild>
-                    <Button 
-                      size="sm"
-                      variant="ghost"
-                      className="absolute bottom-2 right-12 h-8 w-8 p-0"
-                    >
-                      <Paperclip className="h-4 w-4" />
-                    </Button>
-                  </SheetTrigger>
-                  <SheetContent side="right" className="w-96">
-                    <SheetHeader>
-                      <SheetTitle>Attach Documents or Executions</SheetTitle>
-                      <SheetDescription>
-                        Select documents or workflow executions to attach to your message.
-                      </SheetDescription>
-                    </SheetHeader>
-                    
-                    <div className="mt-6 space-y-6">
-                      {/* Documents Section */}
-                      <div>
-                        <h4 className="text-sm font-medium mb-3 flex items-center gap-2">
-                          <FileText className="h-4 w-4" />
-                          Documents
-                        </h4>
-                        <div className="space-y-2">
-                          {mockDocuments.map((doc) => (
-                            <button
-                              key={doc.id}
-                              onClick={() => handleAttachmentSelect(doc)}
-                              className="w-full text-left p-3 rounded-lg border hover:bg-accent transition-colors flex items-center gap-3"
-                            >
-                              <FileText className="h-4 w-4 text-muted-foreground" />
-                              <span className="text-sm">{doc.name}</span>
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Executions Section */}
-                      <div>
-                        <h4 className="text-sm font-medium mb-3 flex items-center gap-2">
-                          <Play className="h-4 w-4" />
-                          Executions
-                        </h4>
-                        <div className="space-y-2">
-                          {mockExecutions.map((execution) => (
-                            <button
-                              key={execution.id}
-                              onClick={() => handleAttachmentSelect(execution)}
-                              className="w-full text-left p-3 rounded-lg border hover:bg-accent transition-colors flex items-center gap-3"
-                            >
-                              <Play className="h-4 w-4 text-muted-foreground" />
-                              <span className="text-sm">{execution.name}</span>
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  </SheetContent>
-                </Sheet>
-
-                {/* Send Button */}
+          {/* Main Input Container */}
+          <div className="flex items-center gap-3 bg-muted/50 rounded-xl p-3 border">
+            {/* Add Context Button */}
+            <Sheet open={isAttachmentSheetOpen} onOpenChange={setIsAttachmentSheetOpen}>
+              <SheetTrigger asChild>
                 <Button 
+                  variant="ghost" 
                   size="sm"
-                  className="absolute bottom-2 right-2 h-8 w-8 p-0"
-                  onClick={handleSendMessage}
-                  disabled={!inputMessage.trim() || isLoading}
+                  className="flex items-center gap-2 text-muted-foreground hover:text-foreground px-3 py-2 h-auto"
                 >
-                  {isLoading ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Send className="h-4 w-4" />
-                  )}
+                  <Plus className="h-4 w-4" />
+                  <span className="text-sm">Add context</span>
                 </Button>
-              </div>
-              
-              {/* Character count and shortcuts */}
-              <div className="flex justify-between items-center text-xs text-muted-foreground">
-                <span>Press Shift+Enter for new line</span>
-                <span>{inputMessage.length}/2000</span>
-              </div>
+              </SheetTrigger>
+              <SheetContent side="right" className="w-96">
+                <SheetHeader>
+                  <SheetTitle>Attach Documents or Executions</SheetTitle>
+                  <SheetDescription>
+                    Select documents or workflow executions to attach to your message.
+                  </SheetDescription>
+                </SheetHeader>
+                
+                <div className="mt-6 space-y-6">
+                  {/* Documents Section */}
+                  <div>
+                    <h4 className="text-sm font-medium mb-3 flex items-center gap-2">
+                      <FileText className="h-4 w-4" />
+                      Documents
+                    </h4>
+                    <div className="space-y-2">
+                      {mockDocuments.map((doc) => (
+                        <button
+                          key={doc.id}
+                          onClick={() => handleAttachmentSelect(doc)}
+                          className="w-full text-left p-3 rounded-lg border hover:bg-accent transition-colors flex items-center gap-3"
+                        >
+                          <FileText className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-sm">{doc.name}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Executions Section */}
+                  <div>
+                    <h4 className="text-sm font-medium mb-3 flex items-center gap-2">
+                      <Play className="h-4 w-4" />
+                      Executions
+                    </h4>
+                    <div className="space-y-2">
+                      {mockExecutions.map((execution) => (
+                        <button
+                          key={execution.id}
+                          onClick={() => handleAttachmentSelect(execution)}
+                          className="w-full text-left p-3 rounded-lg border hover:bg-accent transition-colors flex items-center gap-3"
+                        >
+                          <Play className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-sm">{execution.name}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </SheetContent>
+            </Sheet>
+
+            {/* Text Input */}
+            <div className="flex-1 relative">
+              <Textarea 
+                placeholder="Ask AI anything, @ to mention"
+                value={inputMessage}
+                onChange={(e) => setInputMessage(e.target.value)}
+                onKeyDown={handleKeyDown}
+                className="min-h-[40px] max-h-[120px] resize-none border-0 bg-transparent px-0 py-2 focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-muted-foreground/70"
+                maxLength={2000}
+              />
             </div>
+
+            {/* Model Selection */}
+            <Select value={selectedModel} onValueChange={setSelectedModel}>
+              <SelectTrigger className="w-32 h-8 border-0 bg-transparent">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="gpt-4o-mini">GPT-4o mini</SelectItem>
+                <SelectItem value="gpt-4">GPT-4</SelectItem>
+                <SelectItem value="gpt-3.5-turbo">GPT-3.5 Turbo</SelectItem>
+                <SelectItem value="claude-3">Claude 3</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {/* Mic Button */}
+            <Button 
+              variant="ghost" 
+              size="sm"
+              className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
+            >
+              <Mic className="h-4 w-4" />
+            </Button>
+
+            {/* Send Button */}
+            <Button 
+              onClick={handleSendMessage}
+              disabled={!inputMessage.trim() || isLoading}
+              className="h-8 w-8 p-0"
+            >
+              {isLoading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Send className="h-4 w-4" />
+              )}
+            </Button>
+          </div>
+
+          {/* Footer Info */}
+          <div className="flex justify-between items-center text-xs text-muted-foreground px-1">
+            <span>Press Shift+Enter for new line</span>
+            <span>{inputMessage.length}/2000</span>
           </div>
         </div>
       </div>
