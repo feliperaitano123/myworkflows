@@ -2,32 +2,15 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { Header } from '@/components/Header';
-import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { 
-  Sheet, 
-  SheetContent, 
-  SheetDescription, 
-  SheetHeader, 
-  SheetTitle, 
-  SheetTrigger 
-} from '@/components/ui/sheet';
 import { useWorkflowsContext } from '@/contexts/WorkflowContext';
-import { 
-  Send, 
-  Bot, 
-  User, 
-  MessageSquare, 
-  Loader2,
-  Settings as SettingsIcon,
-  Plus,
-  FileText,
-  Play,
-  Mic
-} from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { MessageSquare, Settings as SettingsIcon } from 'lucide-react';
+import { ChatMessage } from '@/components/chat/ChatMessage';
+import { TypingIndicator } from '@/components/chat/TypingIndicator';
+import { EmptyState } from '@/components/chat/EmptyState';
+import { ChatInput } from '@/components/chat/ChatInput';
+import { useChatMessages } from '@/hooks/useChatMessages';
+import { useAttachments } from '@/hooks/useAttachments';
+import { mockDocuments, mockExecutions } from '@/data/mockData';
 
 interface Message {
   id: string;
@@ -41,39 +24,22 @@ interface Message {
   }>;
 }
 
-interface AttachmentItem {
-  id: string;
-  name: string;
-  type: 'document' | 'execution';
-}
-
 const WorkflowChat: React.FC = () => {
   const { workflowId } = useParams<{ workflowId: string }>();
   const { workflows, selectedWorkflow, setSelectedWorkflow } = useWorkflowsContext();
-  const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState('');
   const [selectedModel, setSelectedModel] = useState('gpt-4o-mini');
-  const [isLoading, setIsLoading] = useState(false);
-  const [isTyping, setIsTyping] = useState(false);
-  const [selectedAttachments, setSelectedAttachments] = useState<AttachmentItem[]>([]);
-  const [isAttachmentSheetOpen, setIsAttachmentSheetOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Mock data for documents and executions
-  const mockDocuments: AttachmentItem[] = [
-    { id: 'doc1', name: 'Planejamento', type: 'document' },
-    { id: 'doc2', name: 'Starter Prompt Library', type: 'document' },
-    { id: 'doc3', name: 'Metodologia', type: 'document' },
-    { id: 'doc4', name: 'Conteúdo S.A.', type: 'document' },
-    { id: 'doc5', name: 'Livros', type: 'document' },
-  ];
-
-  const mockExecutions: AttachmentItem[] = [
-    { id: 'exec1', name: 'Execution #1234', type: 'execution' },
-    { id: 'exec2', name: 'Execution #1235', type: 'execution' },
-    { id: 'exec3', name: 'Execution #1236', type: 'execution' },
-    { id: 'exec4', name: 'Execution #1237', type: 'execution' },
-  ];
+  const { messages, isLoading, isTyping, addMessage, simulateAIResponse } = useChatMessages();
+  const { 
+    selectedAttachments, 
+    isAttachmentSheetOpen, 
+    setIsAttachmentSheetOpen,
+    addAttachment,
+    removeAttachment,
+    clearAttachments
+  } = useAttachments();
 
   // Find current workflow
   const currentWorkflow = workflows.find(w => w.id === workflowId);
@@ -92,26 +58,12 @@ const WorkflowChat: React.FC = () => {
     scrollToBottom();
   }, [messages, isTyping]);
 
-  const handleAttachmentSelect = (item: AttachmentItem) => {
-    if (!selectedAttachments.find(att => att.id === item.id)) {
-      setSelectedAttachments(prev => [...prev, item]);
-      
-      // Add attachment reference to input message
-      const attachmentText = `[${item.name}]`;
-      setInputMessage(prev => prev ? `${prev} ${attachmentText}` : attachmentText);
-    }
-    setIsAttachmentSheetOpen(false);
+  const handleAttachmentSelect = (item: { id: string; name: string; type: 'document' | 'execution' }) => {
+    addAttachment(item, inputMessage, setInputMessage);
   };
 
-  const removeAttachment = (attachmentId: string) => {
-    const attachment = selectedAttachments.find(att => att.id === attachmentId);
-    if (attachment) {
-      setSelectedAttachments(prev => prev.filter(att => att.id !== attachmentId));
-      
-      // Remove attachment reference from input message
-      const attachmentText = `[${attachment.name}]`;
-      setInputMessage(prev => prev.replace(attachmentText, '').trim());
-    }
+  const handleRemoveAttachment = (attachmentId: string) => {
+    removeAttachment(attachmentId, inputMessage, setInputMessage);
   };
 
   const handleSendMessage = async () => {
@@ -125,25 +77,13 @@ const WorkflowChat: React.FC = () => {
       attachments: selectedAttachments.length > 0 ? [...selectedAttachments] : undefined
     };
 
-    setMessages(prev => [...prev, userMessage]);
+    addMessage(userMessage);
     setInputMessage('');
-    setSelectedAttachments([]);
-    setIsLoading(true);
-    setIsTyping(true);
-
-    // Simulate AI response
-    setTimeout(() => {
-      const aiMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: `I understand you're working with the "${currentWorkflow?.name}" workflow. Here's how I can help you with that automation: \n\nThis workflow specializes in ${currentWorkflow?.description}. What specific aspect would you like to know more about or modify?`,
-        timestamp: new Date()
-      };
-      
-      setMessages(prev => [...prev, aiMessage]);
-      setIsTyping(false);
-      setIsLoading(false);
-    }, 2000);
+    clearAttachments();
+    
+    if (currentWorkflow) {
+      simulateAIResponse(currentWorkflow.name, currentWorkflow.description);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -188,250 +128,43 @@ const WorkflowChat: React.FC = () => {
       {/* Messages Area */}
       <div className="flex-1 overflow-y-auto p-6 space-y-4">
         {messages.length === 0 ? (
-          // Empty State
-          <div className="flex-1 flex items-center justify-center">
-            <div className="text-center space-y-4 max-w-md">
-              <div className="h-16 w-16 mx-auto rounded-full bg-primary/10 flex items-center justify-center">
-                <MessageSquare className="h-8 w-8 text-primary" />
-              </div>
-              <div className="space-y-2">
-                <h3 className="text-lg font-semibold">Start a Conversation</h3>
-                <p className="text-muted-foreground">
-                  Ask questions or give instructions about your "{currentWorkflow.name}" workflow.
-                </p>
-              </div>
-              <div className="flex flex-wrap gap-2 justify-center">
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => setInputMessage("How does this workflow work?")}
-                >
-                  How does this work?
-                </Button>
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => setInputMessage("What can I modify in this workflow?")}
-                >
-                  What can I modify?
-                </Button>
-              </div>
-            </div>
-          </div>
+          <EmptyState 
+            workflowName={currentWorkflow.name}
+            onSuggestedMessage={setInputMessage}
+          />
         ) : (
-          // Messages
           <>
             {messages.map((message) => (
-              <div key={message.id} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                <div className={cn(
-                  'max-w-[80%] rounded-lg p-4',
-                  message.role === 'user' 
-                    ? 'bg-primary text-primary-foreground ml-12' 
-                    : 'bg-muted mr-12'
-                )}>
-                  {message.role === 'assistant' && (
-                    <div className="flex items-center gap-2 mb-2">
-                      <Bot className="h-4 w-4" />
-                      <span className="text-xs font-medium">AI Assistant</span>
-                    </div>
-                  )}
-                  
-                  {/* Attachments */}
-                  {message.attachments && message.attachments.length > 0 && (
-                    <div className="mb-2 space-y-1">
-                      {message.attachments.map((attachment) => (
-                        <div key={attachment.id} className="flex items-center gap-2 text-xs opacity-80">
-                          {attachment.type === 'document' ? (
-                            <FileText className="h-3 w-3" />
-                          ) : (
-                            <Play className="h-3 w-3" />
-                          )}
-                          <span>{attachment.name}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  
-                  <div className="whitespace-pre-wrap text-sm">
-                    {message.content}
-                  </div>
-                  <div className="text-xs opacity-70 mt-2">
-                    {formatTime(message.timestamp)}
-                  </div>
-                </div>
-              </div>
+              <ChatMessage 
+                key={message.id} 
+                message={message} 
+                formatTime={formatTime} 
+              />
             ))}
 
-            {/* Typing Indicator */}
-            {isTyping && (
-              <div className="flex justify-start">
-                <div className="bg-muted rounded-lg p-4 mr-12">
-                  <div className="flex items-center gap-2">
-                    <Bot className="h-4 w-4" />
-                    <span className="text-xs font-medium">AI Assistant is typing</span>
-                    <div className="flex gap-1">
-                      <div className="w-1 h-1 bg-muted-foreground rounded-full animate-bounce" />
-                      <div className="w-1 h-1 bg-muted-foreground rounded-full animate-bounce" style={{animationDelay: '0.1s'}} />
-                      <div className="w-1 h-1 bg-muted-foreground rounded-full animate-bounce" style={{animationDelay: '0.2s'}} />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
+            {isTyping && <TypingIndicator />}
           </>
         )}
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input Area - Redesigned to match the image */}
-      <div className="border-t border-border p-4">
-        <div className="space-y-3">
-          {/* Selected Attachments */}
-          {selectedAttachments.length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              {selectedAttachments.map((attachment) => (
-                <div 
-                  key={attachment.id}
-                  className="flex items-center gap-2 bg-secondary text-secondary-foreground px-3 py-1 rounded-full text-sm"
-                >
-                  {attachment.type === 'document' ? (
-                    <FileText className="h-3 w-3" />
-                  ) : (
-                    <Play className="h-3 w-3" />
-                  )}
-                  <span>{attachment.name}</span>
-                  <button
-                    onClick={() => removeAttachment(attachment.id)}
-                    className="ml-1 hover:bg-secondary-foreground/10 rounded-full p-0.5"
-                  >
-                    ×
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Main Input Container */}
-          <div className="flex items-center gap-3 bg-muted/50 rounded-xl p-3 border">
-            {/* Add Context Button */}
-            <Sheet open={isAttachmentSheetOpen} onOpenChange={setIsAttachmentSheetOpen}>
-              <SheetTrigger asChild>
-                <Button 
-                  variant="ghost" 
-                  size="sm"
-                  className="flex items-center gap-2 text-muted-foreground hover:text-foreground px-3 py-2 h-auto"
-                >
-                  <Plus className="h-4 w-4" />
-                  <span className="text-sm">Add context</span>
-                </Button>
-              </SheetTrigger>
-              <SheetContent side="right" className="w-96">
-                <SheetHeader>
-                  <SheetTitle>Attach Documents or Executions</SheetTitle>
-                  <SheetDescription>
-                    Select documents or workflow executions to attach to your message.
-                  </SheetDescription>
-                </SheetHeader>
-                
-                <div className="mt-6 space-y-6">
-                  {/* Documents Section */}
-                  <div>
-                    <h4 className="text-sm font-medium mb-3 flex items-center gap-2">
-                      <FileText className="h-4 w-4" />
-                      Documents
-                    </h4>
-                    <div className="space-y-2">
-                      {mockDocuments.map((doc) => (
-                        <button
-                          key={doc.id}
-                          onClick={() => handleAttachmentSelect(doc)}
-                          className="w-full text-left p-3 rounded-lg border hover:bg-accent transition-colors flex items-center gap-3"
-                        >
-                          <FileText className="h-4 w-4 text-muted-foreground" />
-                          <span className="text-sm">{doc.name}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Executions Section */}
-                  <div>
-                    <h4 className="text-sm font-medium mb-3 flex items-center gap-2">
-                      <Play className="h-4 w-4" />
-                      Executions
-                    </h4>
-                    <div className="space-y-2">
-                      {mockExecutions.map((execution) => (
-                        <button
-                          key={execution.id}
-                          onClick={() => handleAttachmentSelect(execution)}
-                          className="w-full text-left p-3 rounded-lg border hover:bg-accent transition-colors flex items-center gap-3"
-                        >
-                          <Play className="h-4 w-4 text-muted-foreground" />
-                          <span className="text-sm">{execution.name}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </SheetContent>
-            </Sheet>
-
-            {/* Text Input */}
-            <div className="flex-1 relative">
-              <Textarea 
-                placeholder="Ask AI anything, @ to mention"
-                value={inputMessage}
-                onChange={(e) => setInputMessage(e.target.value)}
-                onKeyDown={handleKeyDown}
-                className="min-h-[40px] max-h-[120px] resize-none border-0 bg-transparent px-0 py-2 focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-muted-foreground/70"
-                maxLength={2000}
-              />
-            </div>
-
-            {/* Model Selection */}
-            <Select value={selectedModel} onValueChange={setSelectedModel}>
-              <SelectTrigger className="w-32 h-8 border-0 bg-transparent">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="gpt-4o-mini">GPT-4o mini</SelectItem>
-                <SelectItem value="gpt-4">GPT-4</SelectItem>
-                <SelectItem value="gpt-3.5-turbo">GPT-3.5 Turbo</SelectItem>
-                <SelectItem value="claude-3">Claude 3</SelectItem>
-              </SelectContent>
-            </Select>
-
-            {/* Mic Button */}
-            <Button 
-              variant="ghost" 
-              size="sm"
-              className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
-            >
-              <Mic className="h-4 w-4" />
-            </Button>
-
-            {/* Send Button */}
-            <Button 
-              onClick={handleSendMessage}
-              disabled={!inputMessage.trim() || isLoading}
-              className="h-8 w-8 p-0"
-            >
-              {isLoading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Send className="h-4 w-4" />
-              )}
-            </Button>
-          </div>
-
-          {/* Footer Info */}
-          <div className="flex justify-between items-center text-xs text-muted-foreground px-1">
-            <span>Press Shift+Enter for new line</span>
-            <span>{inputMessage.length}/2000</span>
-          </div>
-        </div>
-      </div>
+      {/* Input Area */}
+      <ChatInput
+        inputMessage={inputMessage}
+        setInputMessage={setInputMessage}
+        selectedModel={selectedModel}
+        setSelectedModel={setSelectedModel}
+        isLoading={isLoading}
+        selectedAttachments={selectedAttachments}
+        isAttachmentSheetOpen={isAttachmentSheetOpen}
+        setIsAttachmentSheetOpen={setIsAttachmentSheetOpen}
+        mockDocuments={mockDocuments}
+        mockExecutions={mockExecutions}
+        onSendMessage={handleSendMessage}
+        onKeyDown={handleKeyDown}
+        onAttachmentSelect={handleAttachmentSelect}
+        onRemoveAttachment={handleRemoveAttachment}
+      />
     </div>
   );
 };
