@@ -32,7 +32,7 @@ const navigation = [
     icon: BarChart3,
   },
   {
-    name: 'My Connections 2',
+    name: 'My Connections 3',
     href: '/connections',
     icon: Cable,
   },
