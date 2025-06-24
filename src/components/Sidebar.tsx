@@ -27,7 +27,7 @@ interface SidebarProps {
 
 const navigation = [
   {
-    name: 'Dashboard',
+    name: 'Dashboard 1',
     href: '/',
     icon: BarChart3,
   },
