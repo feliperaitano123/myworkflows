@@ -1,8 +1,9 @@
 
 import React from 'react';
-import { FileText, Play } from 'lucide-react';
-import { cn } from '@/lib/utils';
 import { AIProcessSteps } from './AIProcessSteps';
+import { AssistantMessage } from './AssistantMessage';
+import { ToolMessage } from './ToolMessage';
+import { UserMessage } from './UserMessage';
 
 interface AttachmentItem {
   id: string;
@@ -45,48 +46,34 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ message, formatTime })
   // Mensagem do usuário
   if (message.role === 'user') {
     return (
-      <div className="flex justify-end">
-        <div className="max-w-[80%] rounded-lg p-4 bg-primary text-primary-foreground ml-12">
-          {/* Attachments */}
-          {message.attachments && message.attachments.length > 0 && (
-            <div className="mb-2 space-y-1">
-              {message.attachments.map((attachment) => (
-                <div key={attachment.id} className="flex items-center gap-2 text-xs opacity-80">
-                  {attachment.type === 'document' ? (
-                    <FileText className="h-3 w-3" />
-                  ) : (
-                    <Play className="h-3 w-3" />
-                  )}
-                  <span>{attachment.name}</span>
-                </div>
-              ))}
-            </div>
-          )}
-          
-          <div className="whitespace-pre-wrap text-sm">
-            {message.content}
-          </div>
-          
-          <div className="text-xs opacity-70 mt-2">
-            {formatTime(message.timestamp)}
-          </div>
-        </div>
-      </div>
+      <UserMessage
+        content={message.content}
+        timestamp={message.timestamp}
+        formatTime={formatTime}
+        attachments={message.attachments}
+      />
     );
   }
 
-  // Mensagem simples do assistente (fallback)
+  // Mensagem de ferramenta (tool)
+  if (message.role === 'tool') {
+    return (
+      <ToolMessage
+        content={message.content}
+        timestamp={message.timestamp}
+        formatTime={formatTime}
+        toolName={message.metadata?.tool_name}
+        metadata={message.metadata}
+      />
+    );
+  }
+
+  // Mensagem simples do assistente
   return (
-    <div className="flex justify-start">
-      <div className="max-w-[80%] rounded-lg p-4 bg-muted mr-12">
-        <div className="whitespace-pre-wrap text-sm">
-          {message.content}
-        </div>
-        
-        <div className="text-xs opacity-70 mt-2">
-          {formatTime(message.timestamp)}
-        </div>
-      </div>
-    </div>
+    <AssistantMessage
+      content={message.content}
+      timestamp={message.timestamp}
+      formatTime={formatTime}
+    />
   );
 };
