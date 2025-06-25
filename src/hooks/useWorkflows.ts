@@ -100,3 +100,34 @@ export const useCreateWorkflow = () => {
     },
   });
 };
+
+export const useUpdateWorkflow = () => {
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+
+  return useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: Partial<CreateWorkflowData> }) => {
+      if (!user?.id) {
+        throw new Error('User not authenticated');
+      }
+
+      const { data: workflow, error } = await supabase
+        .from('workflows')
+        .update(data)
+        .eq('id', id)
+        .eq('user_id', user.id)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error updating workflow:', error);
+        throw error;
+      }
+
+      return workflow;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['workflows', user?.id] });
+    },
+  });
+};

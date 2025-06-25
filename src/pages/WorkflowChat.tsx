@@ -8,8 +8,10 @@ import { ChatMessage } from '@/components/chat/ChatMessage';
 import { TypingIndicator } from '@/components/chat/TypingIndicator';
 import { EmptyState } from '@/components/chat/EmptyState';
 import { ChatInput } from '@/components/chat/ChatInput';
-import { useChatMessages } from '@/hooks/useChatMessages';
+import { useChatMessages } from '@/hooks/useChatMessagesWithAI';
 import { useAttachments } from '@/hooks/useAttachments';
+import { useUpdateWorkflow } from '@/hooks/useWorkflows';
+import { useAlert } from '@/components/AlertProvider';
 import { mockDocuments, mockExecutions } from '@/data/mockData';
 
 interface Message {
@@ -31,7 +33,17 @@ const WorkflowChat: React.FC = () => {
   const [selectedModel, setSelectedModel] = useState('gpt-4o-mini');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const { messages, isLoading, isTyping, addMessage, simulateAIResponse } = useChatMessages();
+  const { 
+    messages, 
+    isLoading, 
+    isTyping, 
+    isStreaming,
+    currentResponse,
+    connectionStatus,
+    addMessage, 
+    sendMessage: sendToAI,
+    clearMessages
+  } = useChatMessages();
   const { 
     selectedAttachments, 
     isAttachmentSheetOpen, 
@@ -40,6 +52,8 @@ const WorkflowChat: React.FC = () => {
     removeAttachment,
     clearAttachments
   } = useAttachments();
+  const updateWorkflowMutation = useUpdateWorkflow();
+  const { showAlert } = useAlert();
 
   // Find current workflow
   const currentWorkflow = workflows.find(w => w.id === workflowId);
@@ -69,21 +83,15 @@ const WorkflowChat: React.FC = () => {
   const handleSendMessage = async () => {
     if (!inputMessage.trim() || isLoading) return;
 
-    const userMessage: Message = {
-      id: Date.now().toString(),
-      role: 'user',
-      content: inputMessage,
-      timestamp: new Date(),
-      attachments: selectedAttachments.length > 0 ? [...selectedAttachments] : undefined
-    };
+    // Enviar mensagem para o agente de IA
+    await sendToAI(
+      inputMessage, 
+      currentWorkflow?.id,
+      selectedAttachments.length > 0 ? selectedAttachments : undefined
+    );
 
-    addMessage(userMessage);
     setInputMessage('');
     clearAttachments();
-    
-    if (currentWorkflow) {
-      simulateAIResponse(currentWorkflow.name, currentWorkflow.description);
-    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -95,6 +103,30 @@ const WorkflowChat: React.FC = () => {
 
   const formatTime = (date: Date) => {
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
+
+  const handleUpdateWorkflowName = async (newName: string) => {
+    if (!currentWorkflow) return;
+
+    try {
+      await updateWorkflowMutation.mutateAsync({
+        id: currentWorkflow.id,
+        data: { name: newName }
+      });
+
+      showAlert({
+        type: 'success',
+        title: 'Workflow Atualizado',
+        message: `Nome alterado para "${newName}" com sucesso!`
+      });
+    } catch (error) {
+      console.error('Error updating workflow name:', error);
+      showAlert({
+        type: 'error',
+        title: 'Erro ao Atualizar',
+        message: 'Não foi possível atualizar o nome do workflow. Tente novamente.'
+      });
+    }
   };
 
   if (!currentWorkflow) {
@@ -142,7 +174,38 @@ const WorkflowChat: React.FC = () => {
               />
             ))}
 
+            {/* Mostrar resposta em streaming */}
+            {isStreaming && currentResponse && (
+              <div className="flex gap-3">
+                <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
+                  <MessageSquare className="h-4 w-4 text-primary-foreground" />
+                </div>
+                <div className="flex-1 space-y-2">
+                  <div className="bg-muted p-3 rounded-lg">
+                    <p className="text-sm whitespace-pre-wrap">{currentResponse}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {isTyping && <TypingIndicator />}
+
+            {/* Status de conexão */}
+            {connectionStatus.error && (
+              <div className="bg-destructive/10 border border-destructive/20 p-3 rounded-lg">
+                <p className="text-destructive text-sm">
+                  ⚠️ {connectionStatus.error}
+                </p>
+              </div>
+            )}
+            
+            {!connectionStatus.isConnected && !connectionStatus.isConnecting && (
+              <div className="bg-muted p-3 rounded-lg">
+                <p className="text-muted-foreground text-sm">
+                  🔌 Conectando ao agente de IA...
+                </p>
+              </div>
+            )}
           </>
         )}
         <div ref={messagesEndRef} />
