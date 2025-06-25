@@ -111,10 +111,15 @@ export const ChatInput: React.FC<ChatInputProps> = ({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="gpt-4o-mini">GPT-4o mini</SelectItem>
-              <SelectItem value="gpt-4">GPT-4</SelectItem>
-              <SelectItem value="gpt-3.5-turbo">GPT-3.5 Turbo</SelectItem>
-              <SelectItem value="claude-3">Claude 3</SelectItem>
+              {/* OpenRouter Programming Models */}
+              <SelectItem value="anthropic/claude-3-haiku">Claude 3 Haiku</SelectItem>
+              <SelectItem value="anthropic/claude-3.5-sonnet">Claude 3.5 Sonnet</SelectItem>
+              <SelectItem value="openai/gpt-4o-mini">GPT-4o Mini</SelectItem>
+              <SelectItem value="openai/gpt-4o">GPT-4o</SelectItem>
+              <SelectItem value="meta-llama/llama-3.1-8b-instruct">Llama 3.1 8B</SelectItem>
+              <SelectItem value="meta-llama/llama-3.1-70b-instruct">Llama 3.1 70B</SelectItem>
+              <SelectItem value="deepseek/deepseek-coder">DeepSeek Coder</SelectItem>
+              <SelectItem value="microsoft/wizardcoder-34b">WizardCoder 34B</SelectItem>
             </SelectContent>
           </Select>
 

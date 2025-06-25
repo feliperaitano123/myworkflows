@@ -30,7 +30,7 @@ const WorkflowChat: React.FC = () => {
   const { workflowId } = useParams<{ workflowId: string }>();
   const { workflows, selectedWorkflow, setSelectedWorkflow } = useWorkflowsContext();
   const [inputMessage, setInputMessage] = useState('');
-  const [selectedModel, setSelectedModel] = useState('gpt-4o-mini');
+  const [selectedModel, setSelectedModel] = useState('anthropic/claude-3-haiku');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Find current workflow first
@@ -88,7 +88,8 @@ const WorkflowChat: React.FC = () => {
     // Enviar mensagem para o agente de IA
     await sendToAI(
       inputMessage,
-      selectedAttachments.length > 0 ? selectedAttachments : undefined
+      selectedAttachments.length > 0 ? selectedAttachments : undefined,
+      selectedModel
     );
 
     setInputMessage('');

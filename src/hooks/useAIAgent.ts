@@ -2,10 +2,12 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
 export interface AIMessage {
-  type: 'token' | 'complete' | 'error' | 'connected';
+  type: 'token' | 'complete' | 'error' | 'connected' | 'history' | 'message_saved';
   content?: string;
   sessionId?: string;
   error?: string;
+  history?: any[];
+  messageId?: string;
 }
 
 export interface UseAIAgentOptions {
@@ -17,11 +19,13 @@ export interface UseAIAgentOptions {
 export interface UseAIAgentReturn {
   isConnected: boolean;
   isConnecting: boolean;
-  sendMessage: (message: string, workflowId?: string) => void;
+  sendMessage: (message: string, workflowId?: string, model?: string) => void;
   messages: AIMessage[];
   currentResponse: string;
   error: string | null;
   clearMessages: () => void;
+  clearCurrentResponse: () => void;
+  socket: WebSocket | null;
 }
 
 export const useAIAgent = ({ 
@@ -72,8 +76,8 @@ export const useAIAgent = ({
           if (message.type === 'token' && message.content) {
             setCurrentResponse(prev => prev + message.content);
           } else if (message.type === 'complete') {
-            // Resposta completa - limpar buffer
-            setCurrentResponse('');
+            // Resposta completa - NÃO limpar buffer ainda (deixar para useChatWithPersistence)
+            // setCurrentResponse('');
           } else if (message.type === 'error') {
             setError(message.error || 'Erro desconhecido');
             setCurrentResponse('');
@@ -121,13 +125,17 @@ export const useAIAgent = ({
     }
   }, [url, autoReconnect, maxReconnectAttempts]);
 
-  const sendMessage = useCallback((message: string, workflowId?: string) => {
+  const sendMessage = useCallback((message: string, workflowId?: string, model?: string) => {
     if (socket?.readyState === WebSocket.OPEN) {
       const payload = {
         type: 'chat',
         content: message,
-        workflowId
+        workflowId,
+        model
       };
+      
+      console.log(`📤 Frontend: Enviando modelo "${model}" para backend`);
+      console.log(`📦 Frontend: Payload completo:`, payload);
       
       socket.send(JSON.stringify(payload));
       setCurrentResponse(''); // Limpar resposta anterior
@@ -144,6 +152,10 @@ export const useAIAgent = ({
     setMessages([]);
     setCurrentResponse('');
     setError(null);
+  }, []);
+
+  const clearCurrentResponse = useCallback(() => {
+    setCurrentResponse('');
   }, []);
 
   // Conectar na inicialização
@@ -177,6 +189,8 @@ export const useAIAgent = ({
     messages,
     currentResponse,
     error,
-    clearMessages
+    clearMessages,
+    clearCurrentResponse,
+    socket
   };
 };

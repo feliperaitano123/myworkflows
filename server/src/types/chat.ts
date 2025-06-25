@@ -43,6 +43,7 @@ export interface ChatMessageRequest {
   type: 'chat';
   content: string;
   workflowId?: string;
+  model?: string;
   attachments?: Array<{
     id: string;
     name: string;

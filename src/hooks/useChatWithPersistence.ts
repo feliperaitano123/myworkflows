@@ -30,7 +30,7 @@ export interface UseChatWithPersistenceReturn {
     isConnecting: boolean;
     error: string | null;
   };
-  sendMessage: (content: string, attachments?: any[]) => Promise<void>;
+  sendMessage: (content: string, attachments?: any[], model?: string) => Promise<void>;
   clearChat: () => Promise<void>;
   error: string | null;
 }
@@ -53,10 +53,12 @@ export const useChatWithPersistence = ({
     messages: wsMessages,
     currentResponse,
     error: wsError,
-    clearMessages: clearWSMessages
+    clearMessages: clearWSMessages,
+    clearCurrentResponse,
+    socket  // Expor o socket do useAIAgent
   } = useAIAgent({ url: wsUrl });
 
-  const currentWorkflowId = useRef<string | undefined>(workflowId);
+  const currentWorkflowId = useRef<string | undefined>(undefined);
 
   // Converter mensagens do WebSocket para nosso formato
   const convertWSMessage = useCallback((wsMsg: any): ChatMessage => {
@@ -72,10 +74,60 @@ export const useChatWithPersistence = ({
   // Carregar histórico quando workflowId muda
   useEffect(() => {
     if (workflowId && workflowId !== currentWorkflowId.current && isConnected) {
+      console.log(`🎯 Workflow mudou de "${currentWorkflowId.current}" para "${workflowId}"`);
       loadChatHistory(workflowId);
       currentWorkflowId.current = workflowId;
     }
   }, [workflowId, isConnected]);
+
+  // Corrigir loadChatHistory para enviar requisição real
+  const loadChatHistory = async (targetWorkflowId: string) => {
+    console.log(`📖 Iniciando loadChatHistory para: ${targetWorkflowId}`);
+    console.log(`🔌 isConnected: ${isConnected}, socket: ${socket ? 'exists' : 'null'}`);
+    
+    if (!isConnected || !socket) {
+      console.log('⏳ Aguardando conexão para carregar histórico...');
+      return;
+    }
+
+    setIsLoadingHistory(true);
+    setError(null);
+
+    // Timeout de segurança - resetar loading após 10 segundos
+    const loadingTimeout = setTimeout(() => {
+      console.warn('⏰ Timeout do carregamento de histórico');
+      setIsLoadingHistory(false);
+      setError('Timeout ao carregar histórico. Tente novamente.');
+    }, 10000);
+
+    try {
+      setMessages([]);
+      // Enviar requisição real de histórico via WebSocket
+      const historyRequest = {
+        type: 'get_history',
+        workflowId: targetWorkflowId,
+        limit: 50
+      };
+      
+      console.log(`📡 Socket readyState: ${socket.readyState} (1 = OPEN)`);
+      
+      // Usar socket unificado do useAIAgent
+      if (socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify(historyRequest));
+        console.log(`📖 ✅ Histórico solicitado para workflow: ${targetWorkflowId}`);
+        console.log(`📦 Requisição enviada:`, historyRequest);
+      } else {
+        console.warn('WebSocket não está aberto para histórico.');
+        clearTimeout(loadingTimeout);
+        setIsLoadingHistory(false);
+      }
+    } catch (error) {
+      console.error('❌ Erro ao carregar histórico:', error);
+      setError('Erro ao carregar histórico do chat');
+      clearTimeout(loadingTimeout);
+      setIsLoadingHistory(false);
+    }
+  };
 
   // Escutar mensagens especiais do WebSocket
   useEffect(() => {
@@ -86,69 +138,66 @@ export const useChatWithPersistence = ({
     
     // Processar diferentes tipos de mensagem
     switch (latestMessage.type) {
+      case 'token':
+        // Token já está sendo processado pelo useAIAgent
+        console.log('🔤 Token recebido, tamanho do currentResponse:', currentResponse.length);
+        break;
       case 'message_saved':
         console.log('💾 Mensagem salva confirmada');
         break;
       case 'complete':
         console.log('✅ Streaming completo - adicionando resposta às mensagens');
-        if (currentResponse) {
+        console.log('📝 currentResponse:', currentResponse);
+        if (currentResponse && currentResponse.trim()) {
           const assistantMessage: ChatMessage = {
             id: Date.now().toString(),
             role: 'assistant',
-            content: currentResponse,
+            content: currentResponse.trim(),
             timestamp: new Date()
           };
           setMessages(prev => [...prev, assistantMessage]);
+          console.log('🤖 Mensagem do assistente adicionada:', assistantMessage);
+          
+          // Limpar o currentResponse após adicionar à UI
+          setTimeout(() => {
+            clearCurrentResponse();
+            console.log('🔄 CurrentResponse limpo');
+          }, 100);
+        } else {
+          console.warn('⚠️ Resposta vazia ao completar streaming');
         }
         break;
       case 'history':
-        console.log('📖 Histórico recebido:', latestMessage.history?.length || 0, 'mensagens');
-        if (latestMessage.history) {
+        console.log('📖 ✅ Histórico recebido:', latestMessage.history?.length || 0, 'mensagens');
+        if (latestMessage.history && latestMessage.history.length > 0) {
           const historyMessages = latestMessage.history.map((msg: any) => convertWSMessage(msg));
           setMessages(historyMessages);
+          console.log('📝 Mensagens de histórico carregadas:', historyMessages);
+        } else {
+          console.log('📭 Nenhuma mensagem no histórico');
+          setMessages([]);
         }
         setIsLoadingHistory(false);
         break;
       case 'error':
         console.error('❌ Erro WebSocket:', latestMessage.error);
-        setError(latestMessage.error || 'Erro desconhecido');
+        const errorMsg = latestMessage.error || 'Erro desconhecido';
+        
+        // Se for erro da API, sugerir solução
+        if (errorMsg.includes('401') || errorMsg.includes('OpenRouter')) {
+          setError('Erro na API do OpenRouter. Verificando chave de API...');
+        } else {
+          setError(errorMsg);
+        }
         setIsLoadingHistory(false);
         break;
     }
   }, [wsMessages, currentResponse]);
 
-  const loadChatHistory = async (targetWorkflowId: string) => {
-    if (!isConnected) {
-      console.log('⏳ Aguardando conexão para carregar histórico...');
-      return;
-    }
-
-    setIsLoadingHistory(true);
-    setError(null);
-
-    try {
-      // Limpar mensagens antigas primeiro
-      setMessages([]);
-      
-      // Por agora, vamos simular carregamento sem requisição
-      // TODO: Implementar requisição real de histórico
-      console.log('📖 Simulando carregamento de histórico...');
-      
-      console.log(`📖 Histórico solicitado para workflow: ${targetWorkflowId}`);
-      
-      // Simular fim do loading após um tempo
-      setTimeout(() => setIsLoadingHistory(false), 1000);
-      
-    } catch (error) {
-      console.error('❌ Erro ao carregar histórico:', error);
-      setError('Erro ao carregar histórico do chat');
-      setIsLoadingHistory(false);
-    }
-  };
-
   const sendMessage = useCallback(async (
     content: string, 
-    attachments?: any[]
+    attachments?: any[],
+    model?: string
   ) => {
     if (!content.trim()) return;
     if (!isConnected) {
@@ -169,12 +218,13 @@ export const useChatWithPersistence = ({
       };
 
       setMessages(prev => [...prev, userMessage]);
+      console.log('👤 Mensagem do usuário adicionada à UI:', userMessage);
 
       // Enviar para o agente via WebSocket
       if (workflowId) {
-        await sendToAgent(content, workflowId);
+        await sendToAgent(content, workflowId, model);
       } else {
-        await sendToAgent(content);
+        await sendToAgent(content, undefined, model);
       }
 
     } catch (error) {

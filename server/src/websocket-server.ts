@@ -3,6 +3,20 @@ import { createClient } from '@supabase/supabase-js';
 import { validateJWT, extractTokenFromRequest } from './auth/jwt';
 import { OpenRouterBridge } from './openrouter-bridge';
 import { ChatSessionManager } from './chat/session-manager';
+
+// Função auxiliar para estimar tokens de forma mais precisa
+function estimateTokenCount(text: string): number {
+  // Estimativa mais precisa baseada em palavras e caracteres
+  const words = text.trim().split(/\s+/).length;
+  const chars = text.length;
+  
+  // Fórmula mais precisa: ~0.75 tokens por palavra + ajuste para caracteres especiais
+  const wordBasedTokens = Math.ceil(words * 0.75);
+  const charBasedTokens = Math.ceil(chars / 4);
+  
+  // Usar o maior dos dois para ser conservador
+  return Math.max(wordBasedTokens, charBasedTokens);
+}
 import { 
   ChatMessage, 
   WSMessage, 
@@ -121,6 +135,12 @@ export class AIWebSocketServer {
   ): Promise<void> {
     try {
       const message = JSON.parse(data.toString());
+      console.log(`📨 Backend: Mensagem recebida tipo: "${message.type}"`);
+      
+      if (message.type === 'chat') {
+        console.log(`🎯 Modelo recebido: "${message.model || 'não especificado'}"`);
+        console.log(`📦 Payload completo:`, message);
+      }
       
       switch (message.type) {
         case 'chat':
@@ -160,6 +180,7 @@ export class AIWebSocketServer {
   ): Promise<void> {
     try {
       console.log(`📨 Mensagem recebida do usuário ${session.userId}: "${message.content}"`);
+      console.log(`🎯 Modelo a ser usado: "${message.model || 'padrão: anthropic/claude-3-haiku'}"`);
       
       // 1. Buscar ou criar sessão de chat no banco
       let chatSessionId = session.chatSessionId;
@@ -178,12 +199,25 @@ export class AIWebSocketServer {
       // 2. Salvar mensagem do usuário no banco
       let userMessageId: string | undefined;
       if (chatSessionId) {
+        // Calcular tokens de input com estimativa melhorada
+        const inputTokens = estimateTokenCount(message.content);
+        console.log(`🔢 Tokens INPUT calculados: ${inputTokens} (${message.content.length} caracteres, ${message.content.trim().split(/\s+/).length} palavras)`);
+        
         userMessageId = await this.chatSessionManager.saveMessage(
           chatSessionId,
           'user',
           message.content,
           session.userToken,
-          { attachments: message.attachments }
+          { 
+            attachments: message.attachments,
+            model: message.model || 'anthropic/claude-3-haiku',
+            tokens: {
+              input: inputTokens,
+              output: 0,
+              total: inputTokens
+            },
+            timestamp: new Date().toISOString()
+          }
         );
 
         // Confirmar que mensagem foi salva
@@ -221,7 +255,8 @@ Instruções:
         message.content,
         systemPrompt,
         session,
-        chatSessionId
+        chatSessionId,
+        message.model || 'anthropic/claude-3-haiku'
       );
       console.log(`✅ Streaming concluído!`);
 
@@ -243,12 +278,17 @@ Instruções:
     session: UserSession
   ): Promise<void> {
     try {
+      console.log(`📖 Backend: Recebendo get_history para workflow: ${message.workflowId}`);
+      console.log(`👤 User: ${session.userId}`);
+      
       const history = await this.chatSessionManager.getWorkflowHistory(
         session.userId,
         message.workflowId,
         session.userToken,
         message.limit || 50
       );
+
+      console.log(`📊 Backend: Histórico encontrado: ${history.length} mensagens`);
 
       const historyMessage: WSChatMessage = {
         type: 'history',
@@ -257,6 +297,7 @@ Instruções:
       };
 
       ws.send(JSON.stringify(historyMessage));
+      console.log(`📤 Backend: Histórico enviado para frontend`);
 
     } catch (error) {
       console.error('Get history error:', error);
@@ -310,7 +351,8 @@ Instruções:
     userMessage: string,
     systemPrompt: string,
     session: UserSession,
-    chatSessionId?: string
+    chatSessionId?: string,
+    model: string = 'anthropic/claude-3-haiku'
   ): Promise<void> {
     let startTime = Date.now();
 
@@ -332,12 +374,19 @@ Instruções:
         systemPrompt,
         session.userId,
         session.sessionId,
-        tokenCallback
+        tokenCallback,
+        model
       );
 
       // Salvar resposta completa no banco
       if (chatSessionId && fullResponse) {
         const responseTime = Date.now() - startTime;
+        
+        // Calcular tokens de output com estimativa melhorada
+        const outputTokens = estimateTokenCount(fullResponse);
+        console.log(`🔢 Tokens OUTPUT calculados: ${outputTokens} (${fullResponse.length} caracteres, ${fullResponse.trim().split(/\s+/).length} palavras)`);
+        console.log(`⏱️ Tempo de resposta: ${responseTime}ms`);
+        console.log(`🤖 Modelo usado: ${model}`);
         
         const assistantMessageId = await this.chatSessionManager.saveMessage(
           chatSessionId,
@@ -346,7 +395,13 @@ Instruções:
           session.userToken,
           { 
             response_time_ms: responseTime,
-            model: 'anthropic/claude-3-haiku' // TODO: pegar do config
+            model: model,
+            tokens: {
+              input: 0,
+              output: outputTokens,
+              total: outputTokens
+            },
+            timestamp: new Date().toISOString()
           }
         );
 

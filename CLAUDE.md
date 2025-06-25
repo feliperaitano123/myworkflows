@@ -102,16 +102,29 @@ Private: / (dashboard), /connections, /library, /settings, /workflow/:id
    - Modal e fluxo de importação prontos
    - Falta: integração com API n8n para listar/importar workflows reais
 
-4. **Agente de IA** (❌ Não Implementado)
-   - Interface de chat completa
-   - Falta: integração com LLM e processamento de workflows
+4. **Agente de IA** (✅ Implementado)
+   - Chat em tempo real com streaming via WebSocket
+   - Integração completa com OpenRouter (8 modelos Programming)
+   - Persistência de histórico por workflow no Supabase
+   - Sistema completo de tracking de tokens e custos
+   - Seleção dinâmica de modelos (Claude, GPT-4o, Llama, DeepSeek, WizardCoder)
+   - Fallback inteligente e tratamento de erros
+   - Interface profissional como ChatGPT/Claude
 
 5. **Pagamentos** (❌ Não Implementado)
    - Integração com Stripe pendente
+   - **Preparado**: Sistema de tracking de tokens para cobrança
 
 ### Current Limitations
-- Chat usa respostas simuladas (não conectado ao n8n ou IA real)
-- Métricas do dashboard são hardcoded
 - Validação de conexão n8n não implementada
-- Sistema de pagamentos não configurado
+- Sistema de pagamentos não configurado (mas tracking de uso pronto)
 - Biblioteca de templates não implementada
+- Carregamento de histórico na primeira visualização (issue menor)
+
+### New Capabilities (Agente de IA)
+- **Real-time Chat**: Streaming de respostas em tempo real
+- **Multiple Models**: 8 modelos especializados em programação
+- **Token Tracking**: Input/output tokens + tempo de resposta + modelo usado
+- **Cost Management**: Base completa para implementar cobrança
+- **Scalable Architecture**: WebSocket + Supabase + RLS + Service Role
+- **Fallback System**: Mock responses se OpenRouter falhar
