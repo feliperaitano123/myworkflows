@@ -2,12 +2,15 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
 export interface AIMessage {
-  type: 'token' | 'complete' | 'error' | 'connected' | 'history' | 'message_saved';
+  type: 'token' | 'complete' | 'error' | 'connected' | 'history' | 'message_saved' | 'tool_message' | 'assistant_message' | 'tool_result' | 'tool_error';
   content?: string;
   sessionId?: string;
   error?: string;
   history?: any[];
   messageId?: string;
+  role?: 'assistant' | 'tool';
+  metadata?: any;
+  timestamp?: string;
 }
 
 export interface UseAIAgentOptions {

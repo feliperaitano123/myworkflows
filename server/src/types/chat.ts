@@ -10,7 +10,7 @@ export interface ChatSession {
 export interface ChatMessage {
   id: string;
   session_id: string;
-  role: 'user' | 'assistant';
+  role: 'user' | 'assistant' | 'tool';
   content: string;
   metadata?: {
     attachments?: Array<{
@@ -27,6 +27,12 @@ export interface ChatMessage {
     tokens_used?: number;
     model?: string;
     response_time_ms?: number;
+    message_type?: string;
+    tool_name?: string;
+    is_tool_message?: boolean;
+    type?: string;
+    error?: string;
+    user_id?: string;
   };
   created_at: string;
 }
@@ -63,10 +69,13 @@ export interface ClearChatRequest {
 }
 
 export interface WSChatMessage {
-  type: 'token' | 'complete' | 'error' | 'connected' | 'history' | 'message_saved';
+  type: 'token' | 'complete' | 'error' | 'connected' | 'history' | 'message_saved' | 'tool_message';
   content?: string;
   sessionId?: string;
   error?: string;
   history?: ChatMessage[];
   messageId?: string;
+  role?: 'assistant' | 'tool';
+  metadata?: any;
+  timestamp?: string;
 }

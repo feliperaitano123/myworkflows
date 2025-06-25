@@ -199,16 +199,29 @@ export class AIWebSocketServer {
       
       // 1. Buscar ou criar sessão de chat no banco
       let chatSessionId = session.chatSessionId;
-      if (message.workflowId && !chatSessionId) {
-        console.log(`🗃️ Criando sessão para workflow: ${message.workflowId}`);
+      
+      // CORREÇÃO: Verificar se mudou de workflow e forçar nova sessão
+      const workflowMudou = message.workflowId && session.workflowId !== message.workflowId;
+      
+      console.log(`🔍 Debug sessão: workflowId atual="${session.workflowId}", novo="${message.workflowId}", chatSessionId="${chatSessionId}", workflowMudou=${workflowMudou}`);
+      
+      if (message.workflowId && (!chatSessionId || workflowMudou)) {
+        if (workflowMudou) {
+          console.log(`🔄 Workflow mudou de "${session.workflowId}" para "${message.workflowId}" - criando nova sessão`);
+        } else {
+          console.log(`🗃️ Criando sessão para workflow: ${message.workflowId}`);
+        }
+        
         chatSessionId = await this.chatSessionManager.getOrCreateSession(
           session.userId, 
           message.workflowId,
           session.userToken
         );
+        
+        // Atualizar session com nova sessão
         session.chatSessionId = chatSessionId;
         session.workflowId = message.workflowId;
-        console.log(`✅ Sessão criada: ${chatSessionId}`);
+        console.log(`✅ Sessão ${workflowMudou ? 'atualizada' : 'criada'}: ${chatSessionId}`);
       }
 
       // 2. Salvar mensagem do usuário no banco

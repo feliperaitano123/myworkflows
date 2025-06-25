@@ -12,7 +12,7 @@ export interface ChatSession {
 export interface ChatMessage {
   id: string;
   session_id: string;
-  role: 'user' | 'assistant';
+  role: 'user' | 'assistant' | 'tool';
   content: string;
   metadata?: any;
   created_at: string;
@@ -90,7 +90,7 @@ export class ChatSessionManager {
    */
   async saveMessage(
     sessionId: string, 
-    role: 'user' | 'assistant', 
+    role: 'user' | 'assistant' | 'tool', 
     content: string, 
     userToken: string,
     metadata?: any

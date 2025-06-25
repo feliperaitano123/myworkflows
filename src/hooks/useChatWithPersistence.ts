@@ -186,6 +186,66 @@ export const useChatWithPersistence = ({
         }
         setIsLoadingHistory(false);
         break;
+      case 'assistant_message':
+        console.log('🤖 Assistant message recebida:', latestMessage);
+        if (latestMessage.content && latestMessage.role === 'assistant') {
+          const assistantMessage: ChatMessage = {
+            id: latestMessage.messageId || `assistant_${Date.now()}_${Math.random()}`,
+            role: 'assistant',
+            content: latestMessage.content,
+            timestamp: new Date(),
+            metadata: {
+              ...latestMessage.metadata,
+              is_tool_call: latestMessage.metadata?.type === 'tool_call'
+            }
+          };
+          
+          setMessages(prev => {
+            console.log(`🤖 Adicionando assistant message à UI: ${assistantMessage.metadata?.type || 'normal'}`);
+            return [...prev, assistantMessage];
+          });
+        }
+        break;
+      case 'tool_result':
+        console.log('🔧 Tool result recebida:', latestMessage);
+        if (latestMessage.content && latestMessage.role === 'tool') {
+          const toolMessage: ChatMessage = {
+            id: latestMessage.messageId || `tool_${Date.now()}_${Math.random()}`,
+            role: 'tool',
+            content: latestMessage.content,
+            timestamp: new Date(),
+            metadata: {
+              ...latestMessage.metadata,
+              is_tool_result: true
+            }
+          };
+          
+          setMessages(prev => {
+            console.log(`🔧 Adicionando tool result à UI`);
+            return [...prev, toolMessage];
+          });
+        }
+        break;
+      case 'tool_error':
+        console.log('❌ Tool error recebida:', latestMessage);
+        if (latestMessage.content && latestMessage.role === 'assistant') {
+          const errorMessage: ChatMessage = {
+            id: `error_${Date.now()}_${Math.random()}`,
+            role: 'assistant',
+            content: latestMessage.content,
+            timestamp: new Date(),
+            metadata: {
+              ...latestMessage.metadata,
+              is_tool_error: true
+            }
+          };
+          
+          setMessages(prev => {
+            console.log(`❌ Adicionando tool error à UI`);
+            return [...prev, errorMessage];
+          });
+        }
+        break;
       case 'error':
         console.error('❌ Erro WebSocket:', latestMessage.error);
         const errorMsg = latestMessage.error || 'Erro desconhecido';

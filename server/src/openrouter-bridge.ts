@@ -69,7 +69,8 @@ export class OpenRouterBridge {
     sessionId: string,
     onToken?: (token: string) => void,
     model: string = 'anthropic/claude-3-haiku',
-    chatHistory: Array<{role: string, content: string}> = []
+    chatHistory: Array<any> = [],
+    customMessages?: Array<any>
   ): Promise<string> {
     console.log(`🔑 Enviando para OpenRouter com modelo: ${model}`);
 
@@ -83,7 +84,7 @@ export class OpenRouterBridge {
       },
       body: JSON.stringify({
         model: model,
-        messages: [
+        messages: customMessages || [
           { role: 'system', content: systemPrompt },
           ...chatHistory,
           { role: 'user', content: userMessage }
@@ -135,34 +136,150 @@ export class OpenRouterBridge {
     const needsTool = this.detectToolNeed(userMessage);
     
     if (needsTool && this.mcpClient.connected) {
-      console.log(`🔧 MCP: Detectado necessidade de tool - executando ANTES da chamada OpenRouter`);
+      console.log(`🔧 MCP: Detectado necessidade de tool - executando FLUXO PADRÃO OPENROUTER`);
       
       try {
-        // 4. Executar tool primeiro
-        const toolResult = await this.executeTool('getWorkflow', {}, userId, workflowId);
+        // 1. SALVAR: Assistant declara tool call (PADRÃO OPENROUTER)
+        const toolCallId = `call_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        const toolCallMessage = `🔍 Vou buscar os dados atuais do seu workflow para te ajudar...`;
         
-        // 5. Incluir resultado da tool no context da mensagem única
-        const enhancedUserMessage = `${userMessage}\n\n[CONTEXT_FROM_TOOL] Dados do workflow:\n${toolResult}`;
-        
-        // 6. Uma única chamada OpenRouter com context completo
-        const fullResponse = await this.processOpenRouterRequest(
-          ws, enhancedUserMessage, enhancedSystemPrompt, sessionId, onToken, model, chatHistory
+        const assistantMessageId = await this.chatSessionManager.saveMessage(
+          chatSessionId!,
+          'assistant',
+          toolCallMessage,
+          '', // userToken - Service Role não precisa
+          {
+            tool_calls: [
+              {
+                id: toolCallId,
+                type: 'function',
+                function: {
+                  name: 'getWorkflow',
+                  arguments: JSON.stringify({ workflowId, userId })
+                }
+              }
+            ],
+            model: model,
+            timestamp: new Date().toISOString()
+          }
         );
         
-        return fullResponse;
+        // Enviar mensagem para frontend IMEDIATAMENTE
+        ws.send(JSON.stringify({
+          type: 'assistant_message',
+          role: 'assistant',
+          content: toolCallMessage,
+          sessionId: sessionId,
+          messageId: assistantMessageId,
+          metadata: { type: 'tool_call', tool: 'getWorkflow' }
+        }));
+        
+        // 2. EXECUTAR: Tool silenciosamente
+        console.log(`🔧 MCP: Executando getWorkflow...`);
+        const toolResult = await this.executeTool('getWorkflow', {}, userId, workflowId);
+        
+        // 3. SALVAR: Tool result (PADRÃO OPENROUTER)
+        const toolMessageId = await this.chatSessionManager.saveMessage(
+          chatSessionId!,
+          'tool',
+          toolResult, // JSON completo como content
+          '',
+          {
+            tool_call_id: toolCallId,
+            tool_name: 'getWorkflow',
+            success: true,
+            result_summary: 'Workflow data retrieved successfully',
+            timestamp: new Date().toISOString()
+          }
+        );
+        
+        // Enviar confirmação de tool para frontend
+        ws.send(JSON.stringify({
+          type: 'tool_result',
+          role: 'tool', 
+          content: '✅ Dados do workflow carregados com sucesso!',
+          sessionId: sessionId,
+          messageId: toolMessageId,
+          metadata: { type: 'tool_result', tool: 'getWorkflow' }
+        }));
+        
+        // 4. OPENROUTER: Contexto completo com tool call + result
+        const toolAwareMessages = [
+          ...chatHistory,
+          { role: 'user', content: userMessage },
+          { 
+            role: 'assistant', 
+            content: toolCallMessage,
+            tool_calls: [
+              {
+                id: toolCallId,
+                type: 'function',
+                function: {
+                  name: 'getWorkflow',
+                  arguments: JSON.stringify({ workflowId, userId })
+                }
+              }
+            ]
+          },
+          {
+            role: 'tool',
+            content: toolResult,
+            tool_call_id: toolCallId
+          }
+        ];
+        
+        // 5. GERAR: Resposta final com contexto completo
+        const completeMessages = [
+          { role: 'system', content: enhancedSystemPrompt },
+          ...toolAwareMessages
+        ];
+        
+        console.log(`🎯 MCP: Enviando contexto completo para OpenRouter (${completeMessages.length} mensagens)`);
+        console.log(`📋 MCP: Última mensagem de tool: ${toolAwareMessages[toolAwareMessages.length - 1]?.role}`);
+        
+        const finalResponse = await this.processOpenRouterRequest(
+          ws, '', enhancedSystemPrompt, sessionId, onToken, model, [], completeMessages
+        );
+        
+        // 6. Resposta final será salva automaticamente pelo streamAndSaveResponse
+        console.log(`✅ MCP: Fluxo padrão OpenRouter concluído com sucesso`);
+        return finalResponse;
         
       } catch (toolError) {
         console.error(`❌ MCP: Erro ao executar tool:`, toolError);
         
-        // Continuar sem tool em caso de erro
-        const errorMessage = `Não foi possível acessar os dados do workflow: ${(toolError as Error).message}`;
-        const enhancedUserMessage = `${userMessage}\n\n[TOOL_ERROR] ${errorMessage}`;
-        
-        const fullResponse = await this.processOpenRouterRequest(
-          ws, enhancedUserMessage, enhancedSystemPrompt, sessionId, onToken, model, chatHistory
+        // Salvar mensagem de erro seguindo padrão
+        const errorMessage = `⚠️ Não foi possível acessar os dados do workflow: ${(toolError as Error).message}. Vou te ajudar com base no que sei.`;
+        await this.chatSessionManager.saveMessage(
+          chatSessionId!,
+          'assistant',
+          errorMessage,
+          '',
+          {
+            tool_error: {
+              tool: 'getWorkflow',
+              error: (toolError as Error).message
+            },
+            model: model,
+            timestamp: new Date().toISOString()
+          }
         );
         
-        return fullResponse;
+        // Notificar frontend sobre erro
+        ws.send(JSON.stringify({
+          type: 'tool_error',
+          role: 'assistant',
+          content: errorMessage,
+          sessionId: sessionId,
+          metadata: { type: 'tool_error', tool: 'getWorkflow' }
+        }));
+        
+        // Continuar com resposta normal
+        const fallbackResponse = await this.processOpenRouterRequest(
+          ws, userMessage, enhancedSystemPrompt, sessionId, onToken, model, chatHistory
+        );
+        
+        return fallbackResponse;
       }
     } else {
       console.log(`📝 MCP: Processamento normal sem tools`);
@@ -427,8 +544,9 @@ export class OpenRouterBridge {
 
   /**
    * Busca histórico de chat para incluir contexto na conversa
+   * ESTRUTURA CORRETA: Inclui todas as mensagens (user, assistant, tool) na estrutura OpenRouter
    */
-  private async getChatHistory(chatSessionId?: string, userId?: string): Promise<Array<{role: string, content: string}>> {
+  private async getChatHistory(chatSessionId?: string, userId?: string): Promise<Array<any>> {
     if (!chatSessionId || !userId) {
       console.log('📭 Sem chatSessionId ou userId - sem histórico');
       return [];
@@ -437,15 +555,55 @@ export class OpenRouterBridge {
     try {
       const messages = await this.chatSessionManager.getSessionHistory(chatSessionId, '');
       
-      // Converter para formato OpenRouter (últimas 10 mensagens para evitar context muito grande)
-      const history = messages
-        .slice(-10) // Últimas 10 mensagens
-        .map(msg => ({
-          role: msg.role,
-          content: msg.content
-        }));
+      // Últimas 12 mensagens para incluir grupos completos (user → assistant → tool → assistant)
+      const recentMessages = messages.slice(-12);
+      
+      const history: Array<any> = [];
+      
+      for (const msg of recentMessages) {
+        if (msg.role === 'user') {
+          // Mensagem do usuário - formato padrão
+          history.push({
+            role: 'user',
+            content: msg.content
+          });
+          
+        } else if (msg.role === 'assistant') {
+          // Mensagem do assistant - verificar se tem tool_calls
+          const message: any = {
+            role: 'assistant',
+            content: msg.content
+          };
+          
+          // Se tiver tool_calls no metadata, incluir na estrutura OpenRouter
+          if (msg.metadata?.tool_calls && Array.isArray(msg.metadata.tool_calls)) {
+            message.tool_calls = msg.metadata.tool_calls;
+          }
+          
+          history.push(message);
+          
+        } else if (msg.role === 'tool') {
+          // Mensagem de tool - formato OpenRouter
+          history.push({
+            role: 'tool',
+            content: msg.content,
+            tool_call_id: msg.metadata?.tool_call_id || 'unknown'
+          });
+        }
+      }
 
-      console.log(`📚 Histórico formatado: ${history.length} mensagens`);
+      console.log(`📚 Histórico formatado: ${history.length} mensagens (estrutura OpenRouter completa)`);
+      console.log(`🔍 Roles no histórico: ${history.map(h => h.role).join(', ')}`);
+      
+      // Log detalhado para debugging
+      history.forEach((msg, index) => {
+        if (msg.role === 'tool') {
+          console.log(`🔧 Tool message ${index}: tool_call_id = ${msg.tool_call_id}`);
+        } else if (msg.role === 'assistant' && msg.tool_calls) {
+          console.log(`🤖 Assistant message ${index}: has ${msg.tool_calls.length} tool_calls`);
+        }
+      });
+      
       return history;
 
     } catch (error) {
@@ -453,6 +611,7 @@ export class OpenRouterBridge {
       return [];
     }
   }
+
 
   /**
    * Detecta se a mensagem do usuário precisa de informações do workflow

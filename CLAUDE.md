@@ -109,7 +109,11 @@ Private: / (dashboard), /connections, /library, /settings, /workflow/:id
    - **Acesso dinâmico a workflows n8n** via API real (não hardcoded)
    - **Persistência de histórico por workflow** no Supabase
    - **Contexto conversacional completo** (agente lembra conversas anteriores)
-   - **Histórico automático**: Últimas 10 mensagens enviadas para OpenRouter
+   - **Histórico automático**: Últimas 12 mensagens enviadas para OpenRouter
+   - **Isolamento de workflows**: Histórico separado por workflow (sem contaminação cruzada)
+   - **Padrão OpenRouter**: Tool calling seguindo especificação oficial (tool_calls/tool_call_id)
+   - **Mensagens estruturadas**: user → assistant (tool_calls) → tool (tool_call_id) → assistant
+   - **UI aprimorada**: Mensagens de tool expansíveis com resumos inteligentes
    - Sistema completo de tracking de tokens e custos
    - Seleção dinâmica de modelos (Claude, GPT-4o, Llama, DeepSeek, WizardCoder)
    - Fallback inteligente e tratamento de erros
@@ -127,15 +131,17 @@ Private: / (dashboard), /connections, /library, /settings, /workflow/:id
 - Validação de conexão n8n não implementada
 - Sistema de pagamentos não configurado (mas tracking de uso pronto)
 - Biblioteca de templates não implementada
-- Carregamento de histórico na primeira visualização (issue menor)
 
 ### New Capabilities (Agente de IA + MCP)
 - **Real-time Chat**: Streaming de respostas em tempo real
 - **Multiple Models**: 8 modelos especializados em programação
 - **MCP Tools**: Model Context Protocol com tool getWorkflow funcionando
 - **Dynamic Context**: Acesso real a workflows n8n via API (não hardcoded)
-- **Conversational Memory**: Histórico automático de conversas (últimas 10 mensagens)
+- **Conversational Memory**: Histórico automático de conversas (últimas 12 mensagens)
 - **Contextual Awareness**: Agente lembra nome do usuário e referências passadas
+- **Workflow Isolation**: Histórico separado por workflow (zero contaminação cruzada)
+- **OpenRouter Standard**: Tool calling oficial com tool_calls/tool_call_id
+- **Smart UI**: Mensagens de tool com resumos expansíveis
 - **Token Tracking**: Input/output tokens + tempo de resposta + modelo usado
 - **Cost Management**: Base completa para implementar cobrança
 - **Scalable Architecture**: WebSocket + MCP + Supabase + RLS + Service Role
