@@ -577,4 +577,33 @@ Esta implementação gradual garante que você tenha uma vitória fácil rapidam
 - ✅ **WorkflowId fixo** da sessão
 - ✅ **Mensagens únicas** (sem duplicação)
 
-**Status**: 🎉 **AGENTE MCP COMPLETO E OPERACIONAL** - Sistema com Model Context Protocol 100% funcional, acesso real ao n8n, pronto para produção.
+### Fase 4: Otimizações de Contexto e UX ✅ COMPLETA
+**Objetivo**: Melhorar contexto conversacional e corrigir dupla resposta
+
+#### 4.1 Implementação de Histórico de Conversa ✅ COMPLETO
+- [x] ✅ Modificar OpenRouter bridge para incluir histórico de chat
+- [x] ✅ Buscar últimas 10 mensagens da sessão automaticamente
+- [x] ✅ Incluir histórico no array messages do OpenRouter
+- [x] ✅ Agente agora lembra contexto de conversas anteriores
+- [x] ✅ Testado: agente lembra nome do usuário e referências passadas
+
+#### 4.2 Correção de Dupla Resposta ✅ COMPLETO
+- [x] ✅ Refatorar fluxo MCP para evitar duas chamadas OpenRouter separadas
+- [x] ✅ Detectar necessidade de tool ANTES da chamada OpenRouter
+- [x] ✅ Executar tool primeiro e incluir resultado no contexto
+- [x] ✅ Uma única chamada OpenRouter com contexto completo
+- [x] ✅ Eliminar duplicação de respostas no frontend
+
+#### 4.3 Melhorias de Performance ✅ IMPLEMENTADO
+- [x] ✅ Tool detection otimizada com keywords específicas
+- [x] ✅ Limite de histórico (10 mensagens) para evitar context overflow
+- [x] ✅ Logs detalhados para debugging de contexto
+- [x] ✅ Tratamento de erro robusto para tool execution
+
+#### 4.4 Validação e Testes ✅ COMPLETO
+- [x] ✅ Testado envio de histórico (agente lembra conversas)
+- [x] ✅ Testado tool execution sem duplicação
+- [x] ✅ Verificado logs de contexto e performance
+- [x] ✅ Build TypeScript sem erros
+
+**Status**: 🎉 **AGENTE MCP COMPLETO E OTIMIZADO** - Sistema com Model Context Protocol 100% funcional, contexto conversacional completo, tool execution sem duplicação, pronto para produção.

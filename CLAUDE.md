@@ -102,19 +102,22 @@ Private: / (dashboard), /connections, /library, /settings, /workflow/:id
    - Modal e fluxo de importação prontos
    - Falta: integração com API n8n para listar/importar workflows reais
 
-4. **Agente de IA** (✅ Implementado)
+4. **Agente de IA** (✅ Implementado Completo)
    - Chat em tempo real com streaming via WebSocket
    - Integração completa com OpenRouter (8 modelos Programming)
    - **Sistema MCP (Model Context Protocol)** com tool getWorkflow
    - **Acesso dinâmico a workflows n8n** via API real (não hardcoded)
-   - Persistência de histórico por workflow no Supabase
+   - **Persistência de histórico por workflow** no Supabase
+   - **Contexto conversacional completo** (agente lembra conversas anteriores)
+   - **Histórico automático**: Últimas 10 mensagens enviadas para OpenRouter
    - Sistema completo de tracking de tokens e custos
    - Seleção dinâmica de modelos (Claude, GPT-4o, Llama, DeepSeek, WizardCoder)
    - Fallback inteligente e tratamento de erros
    - Interface profissional como ChatGPT/Claude
    - **WorkflowId fixo da sessão** para garantir context correto
    - **Detecção automática de tools** (palavras-chave + padrões explícitos)
-   - **Mensagens únicas** (correção de duplicação implementada)
+   - **Tool execution otimizada** (sem dupla resposta)
+   - **Fluxo unificado**: Tool → Context → Resposta única coerente
 
 5. **Pagamentos** (❌ Não Implementado)
    - Integração com Stripe pendente
@@ -131,10 +134,14 @@ Private: / (dashboard), /connections, /library, /settings, /workflow/:id
 - **Multiple Models**: 8 modelos especializados em programação
 - **MCP Tools**: Model Context Protocol com tool getWorkflow funcionando
 - **Dynamic Context**: Acesso real a workflows n8n via API (não hardcoded)
+- **Conversational Memory**: Histórico automático de conversas (últimas 10 mensagens)
+- **Contextual Awareness**: Agente lembra nome do usuário e referências passadas
 - **Token Tracking**: Input/output tokens + tempo de resposta + modelo usado
 - **Cost Management**: Base completa para implementar cobrança
 - **Scalable Architecture**: WebSocket + MCP + Supabase + RLS + Service Role
 - **Fallback System**: Mock responses se OpenRouter falhar
 - **Smart Tool Detection**: Detecção automática + padrões explícitos
 - **Session-based Context**: WorkflowId fixo da sessão para garantir dados corretos
-- **Duplicate Prevention**: Sistema robusto contra mensagens duplicadas
+- **Optimized Tool Flow**: Execução de tool integrada no fluxo principal
+- **Single Response**: Eliminação completa de respostas duplicadas
+- **Performance Optimized**: Context limitado e eficiente para evitar overflow
