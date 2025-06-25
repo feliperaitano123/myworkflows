@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAIAgent } from './useAIAgent';
+import { useAIProcess } from './useAIProcess';
+import { AIProcessMessage } from '@/types/ai-process';
 
 export interface ChatMessage {
   id: string;
@@ -12,6 +14,7 @@ export interface ChatMessage {
     type: 'document' | 'execution';
   }>;
   metadata?: any;
+  processData?: AIProcessMessage; // Nova propriedade para dados do processo
 }
 
 export interface UseChatWithPersistenceOptions {
@@ -55,10 +58,22 @@ export const useChatWithPersistence = ({
     error: wsError,
     clearMessages: clearWSMessages,
     clearCurrentResponse,
-    socket  // Expor o socket do useAIAgent
+    socket
   } = useAIAgent({ url: wsUrl });
 
+  // Hook para gerenciar processos da IA
+  const {
+    createProcess,
+    addStep,
+    updateStep,
+    updateFinalResponse,
+    completeProcess,
+    getProcess,
+    clearProcesses
+  } = useAIProcess();
+
   const currentWorkflowId = useRef<string | undefined>(undefined);
+  const currentProcessId = useRef<string | undefined>(undefined);
 
   // Converter mensagens do WebSocket para nosso formato
   const convertWSMessage = useCallback((wsMsg: any): ChatMessage => {
@@ -129,7 +144,7 @@ export const useChatWithPersistence = ({
     }
   };
 
-  // Escutar mensagens especiais do WebSocket
+  // Escutar mensagens especiais do WebSocket e processar novos tipos
   useEffect(() => {
     if (!wsMessages || wsMessages.length === 0) return;
     
@@ -141,39 +156,105 @@ export const useChatWithPersistence = ({
       case 'token':
         // Token já está sendo processado pelo useAIAgent
         console.log('🔤 Token recebido, tamanho do currentResponse:', currentResponse.length);
+        
+        // Atualizar resposta final no processo ativo
+        if (currentProcessId.current) {
+          updateFinalResponse(currentProcessId.current, currentResponse + (latestMessage.content || ''));
+        }
         break;
-      case 'message_saved':
-        console.log('💾 Mensagem salva confirmada');
+
+      case 'ai_thinking':
+        console.log('🧠 IA iniciou processo de pensamento');
+        const processId = createProcess(latestMessage.sessionId || '');
+        currentProcessId.current = processId;
+        
+        addStep(processId, {
+          type: 'thinking',
+          status: 'in_progress',
+          title: 'Analisando sua solicitação...',
+          description: 'A IA está processando e entendendo o que você pediu'
+        });
         break;
+
+      case 'tool_start':
+        console.log('🔧 Iniciando execução de ferramenta:', latestMessage.stepData);
+        if (currentProcessId.current && latestMessage.stepData) {
+          addStep(currentProcessId.current, {
+            type: 'tool_execution',
+            status: 'in_progress',
+            title: latestMessage.stepData.title,
+            description: latestMessage.stepData.description,
+            toolName: latestMessage.stepData.toolName
+          });
+        }
+        break;
+
+      case 'tool_complete':
+        console.log('✅ Ferramenta concluída:', latestMessage.stepData);
+        if (currentProcessId.current && latestMessage.stepData) {
+          addStep(currentProcessId.current, {
+            type: 'tool_result',
+            status: 'completed',
+            title: 'Dados carregados com sucesso',
+            description: 'As informações necessárias foram obtidas',
+            content: latestMessage.content,
+            toolName: latestMessage.stepData.toolName,
+            duration: latestMessage.stepData.duration
+          });
+        }
+        break;
+
+      case 'ai_responding':
+        console.log('🤖 IA iniciando resposta final');
+        if (currentProcessId.current) {
+          // Atualizar step de thinking para completo
+          const process = getProcess(currentProcessId.current);
+          if (process) {
+            const thinkingStep = process.steps.find(s => s.type === 'thinking');
+            if (thinkingStep) {
+              updateStep(currentProcessId.current, thinkingStep.id, {
+                status: 'completed',
+                title: 'Análise concluída',
+                description: 'Preparando resposta personalizada'
+              });
+            }
+          }
+        }
+        break;
+
       case 'complete':
         console.log('✅ useChatWithPersistence: Streaming completo - processando resposta');
-        console.log('📝 currentResponse length:', currentResponse?.length || 0);
-        if (currentResponse && currentResponse.trim()) {
+        if (currentResponse && currentResponse.trim() && currentProcessId.current) {
+          // Completar o processo com a resposta final
+          completeProcess(currentProcessId.current, currentResponse.trim());
+          
+          // Criar mensagem do assistente com dados do processo
+          const process = getProcess(currentProcessId.current);
           const assistantMessage: ChatMessage = {
             id: Date.now().toString(),
             role: 'assistant',
             content: currentResponse.trim(),
-            timestamp: new Date()
+            timestamp: new Date(),
+            processData: process
           };
+          
           setMessages(prev => {
-            // Verificar se já existe uma mensagem similar (evitar duplicação)
             const lastMessage = prev[prev.length - 1];
             if (lastMessage && lastMessage.role === 'assistant' && 
                 lastMessage.content === assistantMessage.content) {
               console.log('⚠️ Mensagem duplicada detectada, não adicionando');
               return prev;
             }
-            console.log('🤖 Adicionando mensagem do assistente à UI');
+            console.log('🤖 Adicionando mensagem do assistente com processo à UI');
             return [...prev, assistantMessage];
           });
           
-          // Limpar o currentResponse imediatamente
+          // Limpar referência do processo atual
+          currentProcessId.current = undefined;
           clearCurrentResponse();
-          console.log('🔄 CurrentResponse limpo imediatamente');
-        } else {
-          console.warn('⚠️ Resposta vazia ao completar streaming');
         }
         break;
+
       case 'history':
         console.log('📖 ✅ Histórico recebido:', latestMessage.history?.length || 0, 'mensagens');
         if (latestMessage.history && latestMessage.history.length > 0) {
@@ -186,6 +267,7 @@ export const useChatWithPersistence = ({
         }
         setIsLoadingHistory(false);
         break;
+      
       case 'assistant_message':
         console.log('🤖 Assistant message recebida:', latestMessage);
         if (latestMessage.content && latestMessage.role === 'assistant') {
@@ -201,11 +283,12 @@ export const useChatWithPersistence = ({
           };
           
           setMessages(prev => {
-            console.log(`🤖 Adicionando assistant message à UI: ${assistantMessage.metadata?.type || 'normal'}`);
+            console.log(`🤖 Adicionando assistant message à UI: ${latestMessage.metadata?.type || 'normal'}`);
             return [...prev, assistantMessage];
           });
         }
         break;
+      
       case 'tool_result':
         console.log('🔧 Tool result recebida:', latestMessage);
         if (latestMessage.content && latestMessage.role === 'tool') {
@@ -226,6 +309,7 @@ export const useChatWithPersistence = ({
           });
         }
         break;
+      
       case 'tool_error':
         console.log('❌ Tool error recebida:', latestMessage);
         if (latestMessage.content && latestMessage.role === 'assistant') {
@@ -246,11 +330,25 @@ export const useChatWithPersistence = ({
           });
         }
         break;
+      
       case 'error':
         console.error('❌ Erro WebSocket:', latestMessage.error);
         const errorMsg = latestMessage.error || 'Erro desconhecido';
         
-        // Se for erro da API, sugerir solução
+        // Marcar processo atual como erro se existir
+        if (currentProcessId.current) {
+          const process = getProcess(currentProcessId.current);
+          if (process && process.steps.length > 0) {
+            const lastStep = process.steps[process.steps.length - 1];
+            updateStep(currentProcessId.current, lastStep.id, {
+              status: 'error',
+              title: 'Erro no processamento',
+              description: errorMsg
+            });
+          }
+          currentProcessId.current = undefined;
+        }
+        
         if (errorMsg.includes('401') || errorMsg.includes('OpenRouter')) {
           setError('Erro na API do OpenRouter. Verificando chave de API...');
         } else {
@@ -259,7 +357,7 @@ export const useChatWithPersistence = ({
         setIsLoadingHistory(false);
         break;
     }
-  }, [wsMessages, currentResponse]);
+  }, [wsMessages, currentResponse, createProcess, addStep, updateStep, updateFinalResponse, completeProcess, getProcess, clearCurrentResponse]);
 
   const sendMessage = useCallback(async (
     content: string, 
@@ -307,24 +405,22 @@ export const useChatWithPersistence = ({
     if (!workflowId) {
       setMessages([]);
       clearWSMessages();
+      clearProcesses();
       return;
     }
 
     try {
       setError(null);
-
-      // TODO: Implementar clear_chat no backend
-      // Limpar mensagens localmente
       setMessages([]);
       clearWSMessages();
-
+      clearProcesses();
+      currentProcessId.current = undefined;
       console.log(`🗑️ Chat limpo para workflow: ${workflowId}`);
-      
     } catch (error) {
       console.error('❌ Erro ao limpar chat:', error);
       setError('Erro ao limpar chat');
     }
-  }, [workflowId, clearWSMessages]);
+  }, [workflowId, clearWSMessages, clearProcesses]);
 
   // Atualizar mensagens quando receber resposta do agente
   useEffect(() => {
@@ -356,5 +452,4 @@ export const useChatWithPersistence = ({
   };
 };
 
-// Alias para compatibilidade
 export const useChatMessages = useChatWithPersistence;

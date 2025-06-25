@@ -1,3 +1,4 @@
+
 export interface ChatSession {
   id: string;
   user_id: string;
@@ -33,6 +34,7 @@ export interface ChatMessage {
     type?: string;
     error?: string;
     user_id?: string;
+    process_id?: string;
   };
   created_at: string;
 }
@@ -69,7 +71,8 @@ export interface ClearChatRequest {
 }
 
 export interface WSChatMessage {
-  type: 'token' | 'complete' | 'error' | 'connected' | 'history' | 'message_saved' | 'tool_message';
+  type: 'token' | 'complete' | 'error' | 'connected' | 'history' | 'message_saved' | 'tool_message' | 
+        'ai_thinking' | 'tool_start' | 'tool_progress' | 'tool_complete' | 'ai_responding' | 'process_step';
   content?: string;
   sessionId?: string;
   error?: string;
@@ -78,4 +81,14 @@ export interface WSChatMessage {
   role?: 'assistant' | 'tool';
   metadata?: any;
   timestamp?: string;
+  processId?: string;
+  stepData?: {
+    type: 'thinking' | 'tool_execution' | 'tool_result' | 'final_response';
+    status: 'pending' | 'in_progress' | 'completed' | 'error';
+    title: string;
+    description?: string;
+    content?: string;
+    toolName?: string;
+    duration?: number;
+  };
 }

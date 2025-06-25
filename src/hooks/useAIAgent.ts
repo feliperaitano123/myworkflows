@@ -2,7 +2,9 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
 export interface AIMessage {
-  type: 'token' | 'complete' | 'error' | 'connected' | 'history' | 'message_saved' | 'tool_message' | 'assistant_message' | 'tool_result' | 'tool_error';
+  type: 'token' | 'complete' | 'error' | 'connected' | 'history' | 'message_saved' | 'tool_message' | 
+        'assistant_message' | 'tool_result' | 'tool_error' | 'ai_thinking' | 'tool_start' | 
+        'tool_progress' | 'tool_complete' | 'ai_responding' | 'process_step';
   content?: string;
   sessionId?: string;
   error?: string;
@@ -11,6 +13,16 @@ export interface AIMessage {
   role?: 'assistant' | 'tool';
   metadata?: any;
   timestamp?: string;
+  processId?: string;
+  stepData?: {
+    type: 'thinking' | 'tool_execution' | 'tool_result' | 'final_response';
+    status: 'pending' | 'in_progress' | 'completed' | 'error';
+    title: string;
+    description?: string;
+    content?: string;
+    toolName?: string;
+    duration?: number;
+  };
 }
 
 export interface UseAIAgentOptions {
