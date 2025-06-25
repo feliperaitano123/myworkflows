@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { User, Clock, FileText, Play } from 'lucide-react';
+import { CopyButton } from '@/components/ui/copy-button';
 
 interface AttachmentItem {
   id: string;
@@ -32,9 +33,10 @@ export const UserMessage: React.FC<UserMessageProps> = ({
               <span>{formatTime(timestamp)}</span>
             </div>
             <span className="text-sm font-medium">You</span>
+            <CopyButton content={content} />
           </div>
           
-          <div className="bg-primary text-primary-foreground rounded-lg p-4">
+          <div className="bg-primary text-primary-foreground rounded-lg p-4 relative">
             {/* Attachments */}
             {attachments && attachments.length > 0 && (
               <div className="mb-3 space-y-1">

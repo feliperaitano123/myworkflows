@@ -2,6 +2,7 @@
 import React from 'react';
 import { MessageSquare, Clock } from 'lucide-react';
 import { MarkdownRenderer } from './MarkdownRenderer';
+import { CopyButton } from '@/components/ui/copy-button';
 
 interface AssistantMessageProps {
   content: string;
@@ -29,9 +30,10 @@ export const AssistantMessage: React.FC<AssistantMessageProps> = ({
             <Clock className="h-3 w-3" />
             <span>{formatTime(timestamp)}</span>
           </div>
+          <CopyButton content={content} />
         </div>
         
-        <div className="bg-muted/50 rounded-lg p-4 border">
+        <div className="rounded-lg p-4">
           <MarkdownRenderer content={content} />
         </div>
       </div>

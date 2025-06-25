@@ -2,6 +2,8 @@
 import React, { useState } from 'react';
 import { ChevronDown, ChevronRight, Wrench, Clock } from 'lucide-react';
 import { MarkdownRenderer } from './MarkdownRenderer';
+import { CopyButton } from '@/components/ui/copy-button';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 
 interface ToolMessageProps {
@@ -63,16 +65,24 @@ export const ToolMessage: React.FC<ToolMessageProps> = ({
           </div>
         </button>
         
-        {/* Conteúdo expandido */}
+        {/* Conteúdo expandido com card de altura fixa */}
         {isExpanded && (
           <div className="ml-6 space-y-2">
             <div className={cn(
-              "rounded-lg p-4 border-l-4",
+              "rounded-lg border-l-4 border max-h-80 overflow-hidden",
               isError 
-                ? "bg-destructive/5 border-l-destructive" 
-                : "bg-orange-50 dark:bg-orange-950/20 border-l-orange-500"
+                ? "border-l-destructive border-destructive/20" 
+                : "border-l-orange-500 border-border"
             )}>
-              <MarkdownRenderer content={content} />
+              <div className="flex items-center justify-between px-4 py-2 border-b">
+                <span className="text-sm font-medium text-muted-foreground">
+                  Tool Output
+                </span>
+                <CopyButton content={content} />
+              </div>
+              <ScrollArea className="h-64 p-4">
+                <MarkdownRenderer content={content} />
+              </ScrollArea>
             </div>
             
             {/* Metadata adicional se disponível */}
@@ -81,9 +91,11 @@ export const ToolMessage: React.FC<ToolMessageProps> = ({
                 <summary className="text-xs text-muted-foreground cursor-pointer hover:text-foreground">
                   Show metadata
                 </summary>
-                <pre className="text-xs bg-muted p-2 rounded mt-1 overflow-x-auto">
-                  {JSON.stringify(metadata, null, 2)}
-                </pre>
+                <ScrollArea className="max-h-32 mt-1">
+                  <pre className="text-xs bg-muted p-2 rounded overflow-x-auto">
+                    {JSON.stringify(metadata, null, 2)}
+                  </pre>
+                </ScrollArea>
               </details>
             )}
           </div>
