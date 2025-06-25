@@ -21,11 +21,12 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
         remarkPlugins={[remarkGfm]}
         rehypePlugins={[rehypeRaw]}
         components={{
-          code({ node, inline, className, children, ...props }) {
+          code({ node, className, children, ...props }) {
             const match = /language-(\w+)/.exec(className || '');
             const language = match ? match[1] : '';
+            const isInline = !match;
             
-            if (!inline && language) {
+            if (!isInline && language) {
               return (
                 <div className="relative">
                   <div className="absolute top-2 right-2 text-xs text-gray-400 bg-gray-800 px-2 py-1 rounded">

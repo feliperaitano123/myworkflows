@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { ChevronDown, ChevronRight, Tool, Clock } from 'lucide-react';
+import { ChevronDown, ChevronRight, Wrench, Clock } from 'lucide-react';
 import { MarkdownRenderer } from './MarkdownRenderer';
 import { cn } from '@/lib/utils';
 
@@ -31,7 +31,7 @@ export const ToolMessage: React.FC<ToolMessageProps> = ({
         "w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0",
         isError ? "bg-destructive" : "bg-orange-500"
       )}>
-        <Tool className="h-4 w-4 text-white" />
+        <Wrench className="h-4 w-4 text-white" />
       </div>
       
       {/* Content */}
