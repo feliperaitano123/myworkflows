@@ -1,3 +1,4 @@
+
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -70,7 +71,7 @@ export const useN8nWorkflows = () => {
       if (!connection) {
         const { data: connectionData, error: connectionError } = await supabase
           .from('connections')
-          .select('id, n8n_url, n8n_api_key, active')
+          .select('id, name, n8n_url, n8n_api_key, active, user_id, created_at') // Fixed: include all required fields
           .eq('id', connectionId)
           .eq('user_id', user.id)
           .single();

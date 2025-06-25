@@ -38,7 +38,7 @@ export const WorkflowProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const workflows: Workflow[] = workflowsData?.map(workflow => ({
     id: workflow.id,
     name: workflow.workflow_id, // Using workflow_id as name for now
-    connectionId: workflow.n8n_connection_id,
+    connectionId: workflow.connection_id, // Fixed: use connection_id instead of n8n_connection_id
     connectionName: workflow.connections?.name || 'Unknown Connection',
     isActive: true, // Default to active for now
     lastUsed: new Date(workflow.updated_at).toLocaleDateString(),

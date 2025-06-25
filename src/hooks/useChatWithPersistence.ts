@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAIAgent } from './useAIAgent';
 import { useAIProcess } from './useAIProcess';
@@ -5,7 +6,7 @@ import { AIProcessMessage } from '@/types/ai-process';
 
 export interface ChatMessage {
   id: string;
-  role: 'user' | 'assistant';
+  role: 'user' | 'assistant' | 'tool';
   content: string;
   timestamp: Date;
   attachments?: Array<{
