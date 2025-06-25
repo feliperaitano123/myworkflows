@@ -1,11 +1,10 @@
 
 import React, { useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useWorkflowsContext } from '@/contexts/WorkflowContext';
-import { useCreateWorkflow } from '@/hooks/useWorkflows';
 import { ImportWorkflowModal } from './ImportWorkflowModal';
 import { 
   BarChart3, 
@@ -50,25 +49,9 @@ const navigation = [
 
 export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggleCollapse }) => {
   const location = useLocation();
-  const navigate = useNavigate();
   const { workflows, isLoading } = useWorkflowsContext();
-  const createWorkflow = useCreateWorkflow();
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
-  const handleImportWorkflow = async (connectionId: string, workflowId: string) => {
-    try {
-      const newWorkflow = await createWorkflow.mutateAsync({
-        workflow_id: workflowId,
-        n8n_connection_id: connectionId,
-        description: `Imported workflow: ${workflowId}`,
-      });
-      
-      // Navigate to the new workflow chat page
-      navigate(`/workflow/${newWorkflow.id}`);
-    } catch (error) {
-      console.error('Error importing workflow:', error);
-    }
-  };
 
   return (
     <div
@@ -225,7 +208,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggleCollapse 
       <ImportWorkflowModal
         open={isImportModalOpen}
         onOpenChange={setIsImportModalOpen}
-        onImport={handleImportWorkflow}
       />
     </div>
   );
