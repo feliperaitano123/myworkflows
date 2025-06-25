@@ -8,7 +8,7 @@ import { ChatMessage } from '@/components/chat/ChatMessage';
 import { TypingIndicator } from '@/components/chat/TypingIndicator';
 import { EmptyState } from '@/components/chat/EmptyState';
 import { ChatInput } from '@/components/chat/ChatInput';
-import { useChatMessages } from '@/hooks/useChatMessagesWithAI';
+import { useChatWithPersistence } from '@/hooks/useChatWithPersistence';
 import { useAttachments } from '@/hooks/useAttachments';
 import { useUpdateWorkflow } from '@/hooks/useWorkflows';
 import { useAlert } from '@/components/AlertProvider';
@@ -35,15 +35,17 @@ const WorkflowChat: React.FC = () => {
 
   const { 
     messages, 
-    isLoading, 
-    isTyping, 
-    isStreaming,
+    isConnected,
+    isConnecting,
+    isLoadingHistory,
     currentResponse,
     connectionStatus,
-    addMessage, 
     sendMessage: sendToAI,
-    clearMessages
-  } = useChatMessages();
+    clearChat,
+    error: chatError
+  } = useChatWithPersistence({ 
+    workflowId: currentWorkflow?.id 
+  });
   const { 
     selectedAttachments, 
     isAttachmentSheetOpen, 
@@ -81,12 +83,11 @@ const WorkflowChat: React.FC = () => {
   };
 
   const handleSendMessage = async () => {
-    if (!inputMessage.trim() || isLoading) return;
+    if (!inputMessage.trim() || !isConnected) return;
 
     // Enviar mensagem para o agente de IA
     await sendToAI(
-      inputMessage, 
-      currentWorkflow?.id,
+      inputMessage,
       selectedAttachments.length > 0 ? selectedAttachments : undefined
     );
 
@@ -159,7 +160,14 @@ const WorkflowChat: React.FC = () => {
 
       {/* Messages Area */}
       <div className="flex-1 overflow-y-auto p-6 space-y-4">
-        {messages.length === 0 ? (
+        {isLoadingHistory && (
+          <div className="flex items-center justify-center p-4">
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+            <span className="ml-2 text-sm text-muted-foreground">Carregando histórico...</span>
+          </div>
+        )}
+
+        {messages.length === 0 && !isLoadingHistory ? (
           <EmptyState 
             workflowName={currentWorkflow.name}
             onSuggestedMessage={setInputMessage}
@@ -175,7 +183,7 @@ const WorkflowChat: React.FC = () => {
             ))}
 
             {/* Mostrar resposta em streaming */}
-            {isStreaming && currentResponse && (
+            {currentResponse && (
               <div className="flex gap-3">
                 <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
                   <MessageSquare className="h-4 w-4 text-primary-foreground" />
@@ -188,22 +196,33 @@ const WorkflowChat: React.FC = () => {
               </div>
             )}
 
-            {isTyping && <TypingIndicator />}
+            {!isConnected && isConnecting && <TypingIndicator />}
 
-            {/* Status de conexão */}
-            {connectionStatus.error && (
+            {/* Status de conexão e erros */}
+            {(connectionStatus.error || chatError) && (
               <div className="bg-destructive/10 border border-destructive/20 p-3 rounded-lg">
                 <p className="text-destructive text-sm">
-                  ⚠️ {connectionStatus.error}
+                  ⚠️ {connectionStatus.error || chatError}
                 </p>
               </div>
             )}
             
-            {!connectionStatus.isConnected && !connectionStatus.isConnecting && (
+            {!isConnected && !isConnecting && (
               <div className="bg-muted p-3 rounded-lg">
                 <p className="text-muted-foreground text-sm">
                   🔌 Conectando ao agente de IA...
                 </p>
+              </div>
+            )}
+
+            {isConnected && (
+              <div className="text-center">
+                <button
+                  onClick={clearChat}
+                  className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  🗑️ Limpar Chat
+                </button>
               </div>
             )}
           </>
@@ -217,7 +236,7 @@ const WorkflowChat: React.FC = () => {
         setInputMessage={setInputMessage}
         selectedModel={selectedModel}
         setSelectedModel={setSelectedModel}
-        isLoading={isLoading}
+        isLoading={!isConnected}
         selectedAttachments={selectedAttachments}
         isAttachmentSheetOpen={isAttachmentSheetOpen}
         setIsAttachmentSheetOpen={setIsAttachmentSheetOpen}

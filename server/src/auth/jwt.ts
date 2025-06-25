@@ -1,6 +1,11 @@
 import jwt from 'jsonwebtoken';
+import { createClient } from '@supabase/supabase-js';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret';
+// Usar o Supabase para validar tokens
+const supabase = createClient(
+  process.env.SUPABASE_URL!,
+  process.env.SUPABASE_ANON_KEY!
+);
 
 export interface JWTPayload {
   userId: string;
@@ -9,24 +14,33 @@ export interface JWTPayload {
   exp?: number;
 }
 
-export function validateJWT(token: string): Promise<string | null> {
-  return new Promise((resolve) => {
-    try {
-      // Remover "Bearer " se presente
-      const cleanToken = token.replace('Bearer ', '');
-      
-      const decoded = jwt.verify(cleanToken, JWT_SECRET) as JWTPayload;
-      
-      if (decoded.userId) {
-        resolve(decoded.userId);
-      } else {
-        resolve(null);
-      }
-    } catch (error) {
-      console.error('JWT validation error:', error);
-      resolve(null);
+export async function validateJWT(token: string): Promise<string | null> {
+  try {
+    // Remover "Bearer " se presente
+    const cleanToken = token.replace('Bearer ', '');
+    
+    console.log('🔍 Validating JWT token...');
+    
+    // Usar Supabase para validar o token
+    const { data: { user }, error } = await supabase.auth.getUser(cleanToken);
+    
+    if (error) {
+      console.error('❌ Supabase auth error:', error.message);
+      return null;
     }
-  });
+    
+    if (user?.id) {
+      console.log('✅ Token válido para usuário:', user.id);
+      return user.id;
+    }
+    
+    console.log('❌ Token válido mas sem user ID');
+    return null;
+    
+  } catch (error) {
+    console.error('❌ JWT validation error:', error);
+    return null;
+  }
 }
 
 export function extractTokenFromRequest(req: any): string | null {

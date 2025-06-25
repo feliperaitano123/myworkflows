@@ -24,5 +24,7 @@ export interface WorkflowContext {
 export interface UserSession {
   userId: string;
   sessionId: string;
+  workflowId?: string;
+  chatSessionId?: string; // ID da sessão no banco
   connectedAt: Date;
 }

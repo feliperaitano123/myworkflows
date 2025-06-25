@@ -83,6 +83,120 @@ export type Database = {
           },
         ]
       }
+      chat_sessions: {
+        Row: {
+          id: string
+          user_id: string | null
+          workflow_id: string
+          title: string | null
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          user_id?: string | null
+          workflow_id: string
+          title?: string | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          user_id?: string | null
+          workflow_id?: string
+          title?: string | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_sessions_workflow_id_fkey"
+            columns: ["workflow_id"]
+            isOneToOne: false
+            referencedRelation: "workflows"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      chat_messages: {
+        Row: {
+          id: string
+          session_id: string
+          role: string
+          content: string
+          metadata: Json | null
+          created_at: string | null
+        }
+        Insert: {
+          id?: string
+          session_id: string
+          role: string
+          content: string
+          metadata?: Json | null
+          created_at?: string | null
+        }
+        Update: {
+          id?: string
+          session_id?: string
+          role?: string
+          content?: string
+          metadata?: Json | null
+          created_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_messages_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "chat_sessions"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      tool_executions: {
+        Row: {
+          id: string
+          message_id: string
+          tool_name: string
+          parameters: Json | null
+          result: Json | null
+          success: boolean | null
+          error_message: string | null
+          execution_time_ms: number | null
+          created_at: string | null
+        }
+        Insert: {
+          id?: string
+          message_id: string
+          tool_name: string
+          parameters?: Json | null
+          result?: Json | null
+          success?: boolean | null
+          error_message?: string | null
+          execution_time_ms?: number | null
+          created_at?: string | null
+        }
+        Update: {
+          id?: string
+          message_id?: string
+          tool_name?: string
+          parameters?: Json | null
+          result?: Json | null
+          success?: boolean | null
+          error_message?: string | null
+          execution_time_ms?: number | null
+          created_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tool_executions_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "chat_messages"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
     }
     Views: {
       [_ in never]: never

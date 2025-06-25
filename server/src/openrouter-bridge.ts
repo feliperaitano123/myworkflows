@@ -16,13 +16,13 @@ export class OpenRouterBridge {
     userMessage: string,
     systemPrompt: string,
     userId: string,
-    sessionId: string
-  ): Promise<void> {
+    sessionId: string,
+    onToken?: (token: string) => void
+  ): Promise<string> {
     try {
       if (!this.apiKey) {
         // Mock response para desenvolvimento
-        await this.sendMockResponse(ws, userMessage, sessionId);
-        return;
+        return await this.sendMockResponse(ws, userMessage, sessionId, onToken);
       }
 
       const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
@@ -48,7 +48,7 @@ export class OpenRouterBridge {
         throw new Error(`OpenRouter API error: ${response.status}`);
       }
 
-      await this.processStreamResponse(ws, response, sessionId);
+      return await this.processStreamResponse(ws, response, sessionId, onToken);
 
     } catch (error) {
       console.error('OpenRouter streaming error:', error);
@@ -60,20 +60,24 @@ export class OpenRouterBridge {
       };
       
       ws.send(JSON.stringify(errorMessage));
+      return '';
     }
   }
 
   private async processStreamResponse(
     ws: WebSocket,
     response: Response,
-    sessionId: string
-  ): Promise<void> {
+    sessionId: string,
+    onToken?: (token: string) => void
+  ): Promise<string> {
     const reader = response.body?.getReader();
     const decoder = new TextDecoder();
 
     if (!reader) {
       throw new Error('No response body reader available');
     }
+
+    let fullResponse = '';
 
     try {
       while (true) {
@@ -93,7 +97,7 @@ export class OpenRouterBridge {
                 sessionId
               };
               ws.send(JSON.stringify(completeMessage));
-              return;
+              return fullResponse;
             }
 
             try {
@@ -101,12 +105,18 @@ export class OpenRouterBridge {
               const content = parsed.choices?.[0]?.delta?.content;
               
               if (content) {
-                const tokenMessage: WSMessage = {
-                  type: 'token',
-                  content: content,
-                  sessionId
-                };
-                ws.send(JSON.stringify(tokenMessage));
+                fullResponse += content;
+                
+                if (onToken) {
+                  onToken(content);
+                } else {
+                  const tokenMessage: WSMessage = {
+                    type: 'token',
+                    content: content,
+                    sessionId
+                  };
+                  ws.send(JSON.stringify(tokenMessage));
+                }
               }
             } catch (parseError) {
               // Ignore parsing errors for invalid JSON chunks
@@ -117,26 +127,34 @@ export class OpenRouterBridge {
     } finally {
       reader.releaseLock();
     }
+    
+    return fullResponse;
   }
 
   private async sendMockResponse(
     ws: WebSocket,
     userMessage: string,
-    sessionId: string
-  ): Promise<void> {
+    sessionId: string,
+    onToken?: (token: string) => void
+  ): Promise<string> {
     const mockResponse = `Olá! Sou o agente de IA do MyWorkflows. Você disse: "${userMessage}". Esta é uma resposta simulada pois a chave da OpenRouter não está configurada. Configure OPENROUTER_API_KEY no arquivo .env para usar o agente real.`;
     
     // Simular streaming de tokens
     const words = mockResponse.split(' ');
     
     for (const word of words) {
-      const tokenMessage: WSMessage = {
-        type: 'token',
-        content: word + ' ',
-        sessionId
-      };
+      const token = word + ' ';
       
-      ws.send(JSON.stringify(tokenMessage));
+      if (onToken) {
+        onToken(token);
+      } else {
+        const tokenMessage: WSMessage = {
+          type: 'token',
+          content: token,
+          sessionId
+        };
+        ws.send(JSON.stringify(tokenMessage));
+      }
       
       // Pequeno delay para simular streaming
       await new Promise(resolve => setTimeout(resolve, 50));
@@ -149,5 +167,7 @@ export class OpenRouterBridge {
     };
     
     ws.send(JSON.stringify(completeMessage));
+    
+    return mockResponse;
   }
 }

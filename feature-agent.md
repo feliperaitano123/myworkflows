@@ -14,67 +14,93 @@ Implementar um agente de IA que:
 **Objetivo**: Agente básico funcional em 1-2 dias
 
 #### 1.1 Configuração Inicial do Backend
-- [ ] Criar pasta `/server` na raiz do projeto
-- [ ] Configurar Node.js com TypeScript 
-- [ ] Instalar dependências básicas: `ws`, `openai`, `cors`, `jsonwebtoken`
-- [ ] Setup ambiente (.env) com `OPENROUTER_API_KEY`
+- [x] Criar pasta `/server` na raiz do projeto
+- [x] Configurar Node.js com TypeScript 
+- [x] Instalar dependências básicas: `ws`, `openai`, `cors`, `jsonwebtoken`
+- [x] Setup ambiente (.env) com `OPENROUTER_API_KEY`
 
 #### 1.2 Servidor WebSocket Básico
-- [ ] Implementar servidor WebSocket simples em `/server/websocket.ts`
-- [ ] Sistema de autenticação JWT básica
-- [ ] Bridge SSE→WebSocket para OpenRouter
-- [ ] Handler para mensagens de chat
+- [x] Implementar servidor WebSocket simples em `/server/websocket.ts`
+- [x] Sistema de autenticação JWT básica
+- [x] Bridge SSE→WebSocket para OpenRouter
+- [x] Handler para mensagens de chat
 
 #### 1.3 Integração com Workflow n8n
-- [ ] Função para buscar workflow atual do Supabase
-- [ ] Incluir JSON do workflow no contexto do agente
-- [ ] Sistema básico de contexto de sessão
+- [x] Função para buscar workflow atual do Supabase
+- [x] Incluir JSON do workflow no contexto do agente
+- [x] Sistema básico de contexto de sessão
 
 #### 1.4 Frontend - Hook de Chat
-- [ ] Criar `useAIAgent` hook para WebSocket
-- [ ] Integrar na interface de chat existente (`WorkflowChat.tsx`)
-- [ ] Streaming de respostas em tempo real
-- [ ] Estado de conexão e reconexão automática
+- [x] Criar `useAIAgent` hook para WebSocket
+- [x] Integrar na interface de chat existente (`WorkflowChat.tsx`)
+- [x] Streaming de respostas em tempo real
+- [x] Estado de conexão e reconexão automática
 
 #### 1.5 Testes da Vitória Fácil
-- [ ] Testar conexão WebSocket frontend↔backend
-- [ ] Testar streaming de resposta do OpenRouter
-- [ ] Testar acesso ao JSON do workflow
-- [ ] Validar conversa sobre o workflow
+- [x] Testar conexão WebSocket frontend↔backend
+- [x] Testar streaming de resposta do OpenRouter
+- [x] Testar acesso ao JSON do workflow
+- [x] Validar conversa sobre o workflow
 
-### Fase 2: MCP Tools Básicas
-**Objetivo**: Agente com capacidades de ação em 3-5 dias
+### Fase 2: Chat Persistente por Workflow (PRIORIDADE MÁXIMA)
+**Objetivo**: Sistema de chat que mantém histórico por workflow em 6-9 horas
 
-#### 2.1 Setup MCP Server
+#### 2.1 Database Schema (Supabase)
+- [ ] Criar tabela `chat_sessions` - uma sessão por workflow/usuário
+- [ ] Criar tabela `chat_messages` - mensagens do chat (user/assistant)
+- [ ] Configurar políticas RLS para segurança
+- [ ] Atualizar types TypeScript com novas interfaces
+
+#### 2.2 Backend - Persistência de Mensagens  
+- [ ] Criar `ChatSessionManager` para gerenciar sessões
+- [ ] Modificar WebSocket server para salvar mensagens do usuário
+- [ ] Salvar respostas do agente no banco automaticamente
+- [ ] API para buscar histórico de mensagens de uma sessão
+
+#### 2.3 Frontend - Chat Persistente
+- [ ] Criar hook `useChatWithPersistence` para carregar histórico
+- [ ] Modificar WorkflowChat para usar chat persistente
+- [ ] Loading states para carregar histórico ao trocar de workflow
+- [ ] Indicadores de que mensagens foram salvas
+
+#### 2.4 UX e Melhorias
+- [ ] Botão "Limpar Chat" opcional
+- [ ] Cache inteligente no frontend
+- [ ] Tratamento de erros de persistência
+
+### Fase 3: MCP Tools Básicas (EM PARALELO - FUTURO)
+**Objetivo**: Agente com capacidades de ação avançadas
+
+#### 3.1 Setup MCP Server
 - [ ] Instalar `@modelcontextprotocol/sdk`
 - [ ] Configurar servidor MCP em `/server/mcp-server.ts`
 - [ ] Integrar MCP server com WebSocket gateway
 
-#### 2.2 Tools Essenciais n8n
+#### 3.2 Tools Essenciais n8n
 - [ ] **Tool 1**: `get-workflow-details` - detalhes do workflow atual
 - [ ] **Tool 2**: `analyze-workflow` - análise de nodes e conexões
 - [ ] **Tool 3**: `suggest-improvements` - sugestões de otimização
 - [ ] **Tool 4**: `validate-workflow` - verificar problemas
 
-#### 2.3 Tools Básicas de Database
+#### 3.3 Tools Básicas de Database
 - [ ] **Tool 5**: `query-connections` - listar conexões n8n do usuário
 - [ ] **Tool 6**: `get-workflow-history` - histórico de execuções
 - [ ] Validação de permissões por usuário
 
-#### 2.4 Integração Frontend
+#### 3.4 Integração Frontend
 - [ ] Interface para habilitar/desabilitar tools
 - [ ] Exibição de resultados de tools no chat
 - [ ] Loading states durante execução de tools
 
-### Fase 3: Integração n8n API (Opcional - Futuro)
+### Fase 4: Integração n8n API (Opcional - Futuro)
 **Objetivo**: Agente com acesso real ao n8n
 
-#### 3.1 Client n8n API
+#### 4.1 Client n8n API
 - [ ] Implementar client para n8n API REST
 - [ ] Autenticação com instâncias n8n via conexões salvas
 - [ ] Tools para execução de workflows
 
-#### 3.2 Tools Avançadas n8n
+#### 4.2 Tools Avançadas n8n
 - [ ] **Tool**: `execute-workflow` - executar workflow via API
 - [ ] **Tool**: `get-execution-logs` - logs de execução
 - [ ] **Tool**: `modify-workflow` - sugestões de modificação
@@ -365,13 +391,19 @@ const handleSendMessage = (message: string) => {
 
 ## Validação de Sucesso
 
-### Vitória Fácil ✅
-- [ ] Chat em tempo real funcionando
-- [ ] Agente tem acesso ao JSON do workflow
-- [ ] Respostas streaming do OpenRouter
-- [ ] Perguntas sobre workflow são respondidas corretamente
+### Fase 1 - Vitória Fácil ✅
+- [x] Chat em tempo real funcionando
+- [x] Agente tem acesso ao JSON do workflow
+- [x] Respostas streaming do OpenRouter
+- [x] Perguntas sobre workflow são respondidas corretamente
 
-### Fase 2 ✅
+### Fase 2 - Chat Persistente 🚧
+- [ ] Chat mantém histórico por workflow
+- [ ] Mensagens salvas no banco de dados
+- [ ] Interface carrega conversas anteriores
+- [ ] UX profissional como ChatGPT/Claude
+
+### Fase 3 - MCP Tools ⏳
 - [ ] Tools MCP executando
 - [ ] Análise de workflows funcionando
 - [ ] Sugestões de melhorias relevantes
