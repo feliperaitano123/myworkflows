@@ -3,6 +3,12 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 
+export interface ValidationResponse {
+  valid: boolean;
+  message: string;
+  error?: string;
+}
+
 export interface Connection {
   id: string;
   name: string;
@@ -132,5 +138,22 @@ export const useDeleteConnection = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['connections', user?.id] });
     },
+  });
+};
+
+export const useValidateConnection = () => {
+  return useMutation({
+    mutationFn: async ({ n8n_url, n8n_api_key }: { n8n_url: string; n8n_api_key: string }): Promise<ValidationResponse> => {
+      const { data, error } = await supabase.functions.invoke('validate-n8n-connection', {
+        body: { n8n_url, n8n_api_key }
+      });
+
+      if (error) {
+        console.error('Error validating connection:', error);
+        throw error;
+      }
+
+      return data as ValidationResponse;
+    }
   });
 };

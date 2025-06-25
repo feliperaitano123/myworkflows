@@ -32,6 +32,7 @@ import {
   useCreateConnection, 
   useUpdateConnection, 
   useDeleteConnection,
+  useValidateConnection,
   type Connection,
   type CreateConnectionData,
   type UpdateConnectionData
@@ -44,6 +45,9 @@ const MyConnections = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [selectedConnection, setSelectedConnection] = useState<Connection | null>(null);
+  const [isValidating, setIsValidating] = useState(false);
+  const [validationStatus, setValidationStatus] = useState<'idle' | 'valid' | 'invalid'>('idle');
+  const [validationMessage, setValidationMessage] = useState('');
   
   const [formData, setFormData] = useState({
     name: '',
@@ -56,11 +60,14 @@ const MyConnections = () => {
   const createConnectionMutation = useCreateConnection();
   const updateConnectionMutation = useUpdateConnection();
   const deleteConnectionMutation = useDeleteConnection();
+  const validateConnectionMutation = useValidateConnection();
 
   const handleAddConnection = () => {
     setIsEditing(false);
     setSelectedConnection(null);
     setFormData({ name: '', n8n_url: '', n8n_api_key: '' });
+    setValidationStatus('idle');
+    setValidationMessage('');
     setIsModalOpen(true);
   };
 
@@ -72,6 +79,8 @@ const MyConnections = () => {
       n8n_url: connection.n8n_url,
       n8n_api_key: '••••••••••••••••'
     });
+    setValidationStatus('idle');
+    setValidationMessage('');
     setIsModalOpen(true);
   };
 
@@ -82,6 +91,39 @@ const MyConnections = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Validate connection first if creating new or updating API key
+    if (!isEditing || (isEditing && formData.n8n_api_key !== '••••••••••••••••')) {
+      setIsValidating(true);
+      try {
+        const validationResult = await validateConnectionMutation.mutateAsync({
+          n8n_url: isEditing ? selectedConnection!.n8n_url : formData.n8n_url,
+          n8n_api_key: formData.n8n_api_key
+        });
+
+        if (!validationResult.valid) {
+          setValidationStatus('invalid');
+          setValidationMessage(validationResult.message);
+          showAlert({
+            type: 'error',
+            title: 'Conexão Inválida',
+            message: validationResult.message
+          });
+          setIsValidating(false);
+          return;
+        }
+      } catch (error) {
+        setValidationStatus('invalid');
+        setValidationMessage('Erro ao validar conexão');
+        showAlert({
+          type: 'error',
+          title: 'Erro de Validação',
+          message: 'Não foi possível validar a conexão. Verifique sua internet e tente novamente.'
+        });
+        setIsValidating(false);
+        return;
+      }
+    }
 
     try {
       if (isEditing && selectedConnection) {
@@ -121,7 +163,11 @@ const MyConnections = () => {
       }
       
       setIsModalOpen(false);
+      setIsValidating(false);
+      setValidationStatus('idle');
+      setValidationMessage('');
     } catch (error) {
+      setIsValidating(false);
       showAlert({
         type: 'error',
         title: 'Erro',
@@ -153,12 +199,48 @@ const MyConnections = () => {
     setSelectedConnection(null);
   };
 
-  const testConnection = () => {
-    showAlert({
-      type: 'success',
-      title: 'Teste de Conexão Bem-sucedido',
-      message: 'Conectado com sucesso à sua instância N8N.'
-    });
+  const testConnection = async () => {
+    if (!formData.n8n_api_key || (!formData.n8n_url && !isEditing)) {
+      return;
+    }
+
+    setIsValidating(true);
+    setValidationStatus('idle');
+    setValidationMessage('');
+
+    try {
+      const validationResult = await validateConnectionMutation.mutateAsync({
+        n8n_url: isEditing ? selectedConnection!.n8n_url : formData.n8n_url,
+        n8n_api_key: formData.n8n_api_key
+      });
+
+      if (validationResult.valid) {
+        setValidationStatus('valid');
+        showAlert({
+          type: 'success',
+          title: 'Teste de Conexão Bem-sucedido',
+          message: validationResult.message
+        });
+      } else {
+        setValidationStatus('invalid');
+        setValidationMessage(validationResult.message);
+        showAlert({
+          type: 'error',
+          title: 'Conexão Inválida',
+          message: validationResult.message
+        });
+      }
+    } catch (error) {
+      setValidationStatus('invalid');
+      setValidationMessage('Erro ao testar conexão');
+      showAlert({
+        type: 'error',
+        title: 'Erro de Conexão',
+        message: 'Não foi possível testar a conexão. Verifique sua internet e tente novamente.'
+      });
+    } finally {
+      setIsValidating(false);
+    }
   };
 
   const getInitials = (name: string) => {
@@ -177,7 +259,7 @@ const MyConnections = () => {
     return date.toLocaleDateString('pt-BR');
   };
 
-  const isLoading = createConnectionMutation.isPending || updateConnectionMutation.isPending || deleteConnectionMutation.isPending;
+  const isLoading = createConnectionMutation.isPending || updateConnectionMutation.isPending || deleteConnectionMutation.isPending || isValidating;
 
   if (connectionsLoading) {
     return (
@@ -248,7 +330,14 @@ const MyConnections = () => {
                   </div>
                   
                   <div className="flex items-center gap-3">
-                    <div className={`h-2 w-2 rounded-full ${connection.active ? 'bg-green-500' : 'bg-gray-400'}`} />
+                    <div className="flex items-center gap-1">
+                      {connection.active ? (
+                        <CheckCircle2 className="h-4 w-4 text-green-500" />
+                      ) : (
+                        <AlertCircle className="h-4 w-4 text-gray-400" />
+                      )}
+                      <div className={`h-2 w-2 rounded-full ${connection.active ? 'bg-green-500' : 'bg-gray-400'}`} />
+                    </div>
                     
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
@@ -365,17 +454,38 @@ const MyConnections = () => {
               </div>
             </div>
             
-            <div className="pt-4 border-t border-border">
+            <div className="pt-4 border-t border-border space-y-3">
               <Button 
                 type="button" 
                 variant="outline" 
                 className="w-full" 
                 onClick={testConnection}
-                disabled={!formData.name || !formData.n8n_api_key || (!formData.n8n_url && !isEditing)}
+                disabled={!formData.name || !formData.n8n_api_key || (!formData.n8n_url && !isEditing) || isValidating}
               >
-                <Zap className="h-4 w-4 mr-2" />
-                Testar Conexão
+                {isValidating ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Validando...
+                  </>
+                ) : (
+                  <>
+                    <Zap className="h-4 w-4 mr-2" />
+                    Testar Conexão
+                  </>
+                )}
               </Button>
+              {validationStatus === 'valid' && (
+                <div className="flex items-center gap-2 text-sm text-green-600">
+                  <CheckCircle2 className="h-4 w-4" />
+                  <span>Conexão validada com sucesso!</span>
+                </div>
+              )}
+              {validationStatus === 'invalid' && (
+                <div className="flex items-center gap-2 text-sm text-red-600">
+                  <AlertCircle className="h-4 w-4" />
+                  <span>{validationMessage}</span>
+                </div>
+              )}
             </div>
           </form>
           
