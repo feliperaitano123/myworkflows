@@ -400,28 +400,35 @@ const MyConnections = () => {
               )}
             </div>
             
-            {!isEditing && (
-              <div className="space-y-2">
-                <Label htmlFor="url">URL da Instância N8N *</Label>
-                <div className="relative">
-                  <Globe className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                  <Input 
-                    id="url"
-                    placeholder="https://n8n.suaempresa.com"
-                    className="pl-10"
-                    value={formData.n8n_url}
-                    onChange={(e) => setFormData({...formData, n8n_url: e.target.value})}
-                    required
-                  />
-                </div>
-                <div className="flex items-center gap-2 text-xs">
-                  <AlertCircle className="h-3 w-3 text-yellow-500" />
-                  <span className="text-muted-foreground">
-                    A URL não pode ser alterada após a criação
-                  </span>
-                </div>
+            <div className="space-y-2">
+              <Label htmlFor="url">URL da Instância N8N *</Label>
+              <div className="relative">
+                <Globe className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Input 
+                  id="url"
+                  placeholder="https://n8n.suaempresa.com"
+                  className="pl-10"
+                  value={isEditing ? selectedConnection?.n8n_url || '' : formData.n8n_url}
+                  onChange={(e) => !isEditing && setFormData({...formData, n8n_url: e.target.value})}
+                  disabled={isEditing}
+                  required
+                />
+                {isEditing && (
+                  <div className="absolute right-3 top-3">
+                    <Shield className="h-4 w-4 text-muted-foreground" />
+                  </div>
+                )}
               </div>
-            )}
+              <div className="flex items-center gap-2 text-xs">
+                <AlertCircle className="h-3 w-3 text-yellow-500" />
+                <span className="text-muted-foreground">
+                  {isEditing 
+                    ? "A URL não pode ser alterada. Apenas o nome e chave API podem ser modificados."
+                    : "A URL não pode ser alterada após a criação"
+                  }
+                </span>
+              </div>
+            </div>
             
             <div className="space-y-2">
               <Label htmlFor="apiKey">Chave API N8N *</Label>
@@ -486,6 +493,12 @@ const MyConnections = () => {
                   <span>{validationMessage}</span>
                 </div>
               )}
+              {isEditing && formData.n8n_api_key !== '••••••••••••••••' && validationStatus !== 'valid' && (
+                <div className="flex items-center gap-2 text-sm text-blue-600">
+                  <AlertCircle className="h-4 w-4" />
+                  <span>Teste a conexão antes de salvar as alterações</span>
+                </div>
+              )}
             </div>
           </form>
           
@@ -495,7 +508,13 @@ const MyConnections = () => {
             </Button>
             <Button 
               type="submit" 
-              disabled={isLoading || !formData.name || !formData.n8n_api_key || (!formData.n8n_url && !isEditing)}
+              disabled={
+                isLoading || 
+                !formData.name || 
+                !formData.n8n_api_key || 
+                (!formData.n8n_url && !isEditing) ||
+                (isEditing && formData.n8n_api_key !== '••••••••••••••••' && validationStatus !== 'valid')
+              }
               onClick={handleSubmit}
             >
               {isLoading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
