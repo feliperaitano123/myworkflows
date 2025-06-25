@@ -146,8 +146,8 @@ export const useChatWithPersistence = ({
         console.log('💾 Mensagem salva confirmada');
         break;
       case 'complete':
-        console.log('✅ Streaming completo - adicionando resposta às mensagens');
-        console.log('📝 currentResponse:', currentResponse);
+        console.log('✅ useChatWithPersistence: Streaming completo - processando resposta');
+        console.log('📝 currentResponse length:', currentResponse?.length || 0);
         if (currentResponse && currentResponse.trim()) {
           const assistantMessage: ChatMessage = {
             id: Date.now().toString(),
@@ -155,14 +155,21 @@ export const useChatWithPersistence = ({
             content: currentResponse.trim(),
             timestamp: new Date()
           };
-          setMessages(prev => [...prev, assistantMessage]);
-          console.log('🤖 Mensagem do assistente adicionada:', assistantMessage);
+          setMessages(prev => {
+            // Verificar se já existe uma mensagem similar (evitar duplicação)
+            const lastMessage = prev[prev.length - 1];
+            if (lastMessage && lastMessage.role === 'assistant' && 
+                lastMessage.content === assistantMessage.content) {
+              console.log('⚠️ Mensagem duplicada detectada, não adicionando');
+              return prev;
+            }
+            console.log('🤖 Adicionando mensagem do assistente à UI');
+            return [...prev, assistantMessage];
+          });
           
-          // Limpar o currentResponse após adicionar à UI
-          setTimeout(() => {
-            clearCurrentResponse();
-            console.log('🔄 CurrentResponse limpo');
-          }, 100);
+          // Limpar o currentResponse imediatamente
+          clearCurrentResponse();
+          console.log('🔄 CurrentResponse limpo imediatamente');
         } else {
           console.warn('⚠️ Resposta vazia ao completar streaming');
         }
@@ -217,10 +224,13 @@ export const useChatWithPersistence = ({
         attachments
       };
 
-      setMessages(prev => [...prev, userMessage]);
-      console.log('👤 Mensagem do usuário adicionada à UI:', userMessage);
+      setMessages(prev => {
+        console.log(`👤 useChatWithPersistence: Adicionando mensagem do usuário (${prev.length} → ${prev.length + 1})`);
+        return [...prev, userMessage];
+      });
 
       // Enviar para o agente via WebSocket
+      console.log(`📤 useChatWithPersistence: Enviando para agente - workflowId: ${workflowId}, model: ${model}`);
       if (workflowId) {
         await sendToAgent(content, workflowId, model);
       } else {

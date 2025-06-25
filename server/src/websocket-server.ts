@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { validateJWT, extractTokenFromRequest } from './auth/jwt';
 import { OpenRouterBridge } from './openrouter-bridge';
 import { ChatSessionManager } from './chat/session-manager';
+import { getMCPClient } from './mcp/mcp-client';
 
 // Função auxiliar para estimar tokens de forma mais precisa
 function estimateTokenCount(text: string): number {
@@ -36,6 +37,7 @@ export class AIWebSocketServer {
   private chatSessionManager: ChatSessionManager;
   private supabase: any;
   private activeSessions: Map<string, UserSession> = new Map();
+  private mcpClient: any;
 
   constructor(port: number) {
     this.wss = new WebSocket.Server({ 
@@ -43,7 +45,8 @@ export class AIWebSocketServer {
       verifyClient: this.verifyClient.bind(this)
     });
     
-    this.openRouterBridge = new OpenRouterBridge();
+    this.mcpClient = getMCPClient();
+    this.openRouterBridge = new OpenRouterBridge(this.mcpClient);
     this.chatSessionManager = new ChatSessionManager();
     this.supabase = createClient(
       process.env.SUPABASE_URL!,
@@ -51,12 +54,24 @@ export class AIWebSocketServer {
     );
     
     this.setupServer();
+    this.initializeMCP();
     console.log(`🚀 AI Agent WebSocket Server running on port ${port}`);
   }
 
   private verifyClient(info: any): boolean {
     // Validação básica - a autenticação real é feita no connection
     return true;
+  }
+
+  private async initializeMCP(): Promise<void> {
+    try {
+      console.log('🔗 Inicializando MCP Client...');
+      await this.mcpClient.connect();
+      console.log('✅ MCP Client conectado e pronto!');
+    } catch (error) {
+      console.error('❌ Erro ao inicializar MCP Client:', error);
+      console.warn('⚠️ Servidor funcionará sem ferramentas MCP');
+    }
   }
 
   private setupServer(): void {
@@ -229,34 +244,34 @@ export class AIWebSocketServer {
         ws.send(JSON.stringify(confirmMessage));
       }
 
-      // 3. Buscar contexto do workflow se fornecido
-      let workflowContext = '';
-      if (message.workflowId) {
-        const workflow = await this.getWorkflowContext(message.workflowId, session.userId);
-        if (workflow) {
-          workflowContext = `\n\nContexto do Workflow Atual:\n- Nome: ${workflow.name}\n- ID no sistema: ${workflow.id}\n- ID no n8n: ${workflow.workflow_id}\n- Descrição: ${workflow.description || 'Sem descrição'}\n- Status: ${workflow.active ? 'Ativo' : 'Inativo'}`;
-        }
-      }
-
-      // 4. Construir prompt do sistema
+      // 3. Construir prompt do sistema (genérico, sem context hardcoded)
+      // ARQUITETURA MCP: Context específico agora vem via Tools dinâmicas
       const systemPrompt = `Você é um especialista em n8n workflows e automações. Seu papel é ajudar o usuário a entender, otimizar e resolver problemas em seus workflows.
 
 Instruções:
-- Seja prestativo e técnico
+- Seja prestativo e técnico  
 - Explique conceitos de forma clara
 - Sugira melhorias quando apropriado
 - Foque em soluções práticas
-- Use exemplos quando possível${workflowContext}`;
+- Use exemplos quando possível
+- Se precisar de detalhes específicos de um workflow, você pode usar as ferramentas disponíveis para buscá-los
 
-      // 5. Stream resposta via OpenRouter e salvar no banco
+Você tem acesso a ferramentas que podem:
+- Buscar detalhes completos de workflows do n8n
+- Analisar configurações e estrutura dos workflows
+- Acessar dados reais e atualizados dos workflows`;
+
+      // 4. Stream resposta via OpenRouter e salvar no banco
       console.log(`🚀 Iniciando streaming de resposta...`);
+      console.log(`🔧 MCP: System prompt genérico (sem context hardcoded)`);
       await this.streamAndSaveResponse(
         ws,
         message.content,
         systemPrompt,
         session,
         chatSessionId,
-        message.model || 'anthropic/claude-3-haiku'
+        message.model || 'anthropic/claude-3-haiku',
+        message.workflowId
       );
       console.log(`✅ Streaming concluído!`);
 
@@ -352,7 +367,8 @@ Instruções:
     systemPrompt: string,
     session: UserSession,
     chatSessionId?: string,
-    model: string = 'anthropic/claude-3-haiku'
+    model: string = 'anthropic/claude-3-haiku',
+    workflowId?: string
   ): Promise<void> {
     let startTime = Date.now();
 
@@ -375,7 +391,8 @@ Instruções:
         session.userId,
         session.sessionId,
         tokenCallback,
-        model
+        model,
+        workflowId
       );
 
       // Salvar resposta completa no banco

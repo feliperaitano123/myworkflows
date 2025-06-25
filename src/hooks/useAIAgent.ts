@@ -71,13 +71,14 @@ export const useAIAgent = ({
         try {
           const message: AIMessage = JSON.parse(event.data);
           
+          // Adicionar mensagem para que useChatWithPersistence possa processar
           setMessages(prev => [...prev, message]);
           
           if (message.type === 'token' && message.content) {
             setCurrentResponse(prev => prev + message.content);
           } else if (message.type === 'complete') {
-            // Resposta completa - NÃO limpar buffer ainda (deixar para useChatWithPersistence)
-            // setCurrentResponse('');
+            // Não fazer nada aqui - deixar useChatWithPersistence processar
+            console.log('🏁 useAIAgent: Complete recebido, deixando para useChatWithPersistence processar');
           } else if (message.type === 'error') {
             setError(message.error || 'Erro desconhecido');
             setCurrentResponse('');
@@ -172,15 +173,6 @@ export const useAIAgent = ({
       }
     };
   }, [connect]);
-
-  // Cleanup do socket quando ele muda
-  useEffect(() => {
-    return () => {
-      if (socket && socket.readyState === WebSocket.OPEN) {
-        socket.close(1000);
-      }
-    };
-  }, [socket]);
 
   return {
     isConnected,

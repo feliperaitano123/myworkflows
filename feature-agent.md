@@ -118,26 +118,87 @@ Implementar um agente de IA que:
 }
 ```
 
-### Fase 3: MCP Tools Básicas (FUTURO)
-**Objetivo**: Agente com capacidades de ação avançadas
+### Fase 3: MCP Tools - getWorkflow ✅ COMPLETA
+**Objetivo**: Implementar Model Context Protocol com primeira tool para buscar workflow real do n8n
 
-#### 3.1 Setup MCP Server
-- [ ] Instalar `@modelcontextprotocol/sdk`
-- [ ] Configurar servidor MCP em `/server/mcp-server.ts`
-- [ ] Integrar MCP server com WebSocket gateway
+#### 3.1 Refatoração do Sistema de Context ✅ COMPLETO
+- [x] ✅ Remover `getWorkflowContext()` do system prompt automático
+- [x] ✅ Manter system prompt genérico sem contexto hardcoded
+- [x] ✅ Documentar mudança de arquitetura (context fixo → tools dinâmicas)
 
-#### 3.2 Tools Essenciais n8n
-- [ ] **Tool 1**: `get-workflow-details` - detalhes do workflow atual
-- [ ] **Tool 2**: `analyze-workflow` - análise de nodes e conexões
-- [ ] **Tool 3**: `suggest-improvements` - sugestões de otimização
-- [ ] **Tool 4**: `validate-workflow` - verificar problemas
+#### 3.2 Setup MCP Server ✅ COMPLETO
+- [x] ✅ Instalar `@modelcontextprotocol/sdk` no servidor
+- [x] ✅ Criar `/server/src/mcp/mcp-server.ts` com tool getWorkflow
+- [x] ✅ Criar `/server/src/mcp/mcp-client.ts` para comunicação
+- [x] ✅ Configurar servidor MCP standalone (testado funcionando)
+- [x] ✅ Script npm para executar MCP server (`npm run dev:mcp`)
 
-#### 3.3 Tools Básicas de Database
-- [ ] **Tool 5**: `query-connections` - listar conexões n8n do usuário
-- [ ] **Tool 6**: `get-workflow-history` - histórico de execuções
-- [ ] Validação de permissões por usuário
+#### 3.3 Tool getWorkflow - API n8n Real ✅ COMPLETO
+- [x] ✅ **Tool**: `getWorkflow` - busca JSON completo do workflow via API n8n
+- [x] ✅ Implementar client n8n API REST no backend (`/server/src/n8n/n8n-client.ts`)
+- [x] ✅ Buscar conexão n8n ativa do usuário no Supabase
+- [x] ✅ Fazer chamada real: `GET /api/v1/workflows/{id}` no n8n
+- [x] ✅ Retornar JSON completo: nodes, connections, settings, variables
+- [x] ✅ Tratamento de erros: conexão offline, workflow não encontrado, sem permissão
+- [x] ✅ Formatação inteligente para o agente (resumo + JSON completo)
+- [x] ✅ Singleton pattern e logs detalhados
 
-#### 3.4 Integração Frontend
+#### 3.4 Integração WebSocket ↔ MCP ✅ COMPLETO
+- [x] ✅ Modificar WebSocket server para detectar tool calls
+- [x] ✅ Bridge: mensagem do agente → chamada MCP → resposta → agente
+- [x] ✅ Fluxo: User pergunta → Agent decide tool → MCP executa → Agent responde
+- [x] ✅ Logs detalhados do fluxo completo
+- [x] ✅ Sistema de detecção automática de tools (palavras-chave + padrão explícito)
+- [x] ✅ WorkflowId fixo da sessão (ignora IDs mencionados pelo agente)
+
+#### 3.5 Tool Execution Flow ✅ IMPLEMENTADO
+```
+1. User: "Como está configurado o webhook do meu workflow?"
+2. Agent analisa: precisa de detalhes do workflow
+3. Agent decide: chamar tool getWorkflow ou sistema detecta automaticamente
+4. MCP: busca conexão n8n do usuário no Supabase
+5. MCP: chama API n8n real: GET /api/v1/workflows/{n8n_id}
+6. MCP: retorna JSON completo com resumo formatado
+7. Agent: analisa JSON e responde especificamente sobre webhook
+```
+
+#### 3.6 Correções e Otimizações ✅ COMPLETO
+- [x] ✅ Corrigir schema do banco (n8n_url vs url, n8n_api_key vs api_key)
+- [x] ✅ Sanitização de API Key (remover caracteres Unicode)
+- [x] ✅ Tratamento de erro ByteString no fetch
+- [x] ✅ Headers HTTP aprimorados (User-Agent, Accept)
+- [x] ✅ Logs detalhados para debugging de API calls
+
+#### 3.7 Correção de Mensagens Duplicadas ✅ COMPLETO
+- [x] ✅ Corrigir duplo useEffect no useAIAgent
+- [x] ✅ Detecção de mensagens duplicadas no useChatWithPersistence
+- [x] ✅ Race condition no clearCurrentResponse resolvido
+- [x] ✅ Logs específicos para debugging de mensagens
+- [x] ✅ Mensagens aparecem apenas uma vez e persistem corretamente
+
+#### 3.8 Testes e Validação ✅ VALIDADO
+- [x] ✅ Testado com workflow real do n8n
+- [x] ✅ JSON retornado completo e correto
+- [x] ✅ Agente usando contexto dinâmico via MCP (não hardcoded)
+- [x] ✅ Performance adequada (latência aceitável da API n8n)
+- [x] ✅ Tratamento de edge cases funcionando
+- [x] ✅ Tool detection funcionando com padrões múltiplos
+
+### Fase 3.1: Expansão MCP Tools (FUTURO)
+**Objetivo**: Mais ferramentas avançadas baseadas no sucesso da getWorkflow
+
+#### 3.1.1 Tools Avançadas n8n
+- [ ] **Tool**: `executeWorkflow` - executar workflow via API
+- [ ] **Tool**: `getExecutionLogs` - logs de execução específica  
+- [ ] **Tool**: `listWorkflows` - listar todos workflows do usuário
+- [ ] **Tool**: `analyzePerformance` - análise de performance do workflow
+
+#### 3.1.2 Tools Database e Analytics  
+- [ ] **Tool**: `getWorkflowStats` - estatísticas de execução
+- [ ] **Tool**: `searchWorkflows` - busca por nome/tag/node
+- [ ] **Tool**: `getConnectionStatus` - status das conexões n8n
+
+#### 3.1.3 Integração Frontend Avançada
 - [ ] Interface para habilitar/desabilitar tools
 - [ ] Exibição de resultados de tools no chat
 - [ ] Loading states durante execução de tools
@@ -458,13 +519,13 @@ const handleSendMessage = (message: string) => {
 - [🐛] ⚠️ Interface carrega conversas anteriores (correção em andamento)
 - [x] ✅ UX profissional como ChatGPT/Claude
 
-### Fase 3 - MCP Tools ⏳ PREPARADA
+### Fase 3 - MCP Tools ⏳ EM ANDAMENTO
 - [x] ✅ Database schema para tools criado
 - [x] ✅ Arquitetura preparada para tools
-- [ ] ⏳ Tools MCP executando
-- [ ] ⏳ Análise de workflows funcionando
-- [ ] ⏳ Sugestões de melhorias relevantes
-- [ ] ⏳ Interface de tools integrada
+- [ ] ⏳ Setup MCP Server e primeira tool getWorkflow
+- [ ] ⏳ Integração n8n API real
+- [ ] ⏳ Bridge WebSocket ↔ MCP funcionando
+- [ ] ⏳ Agente usando context dinâmico via tools
 
 Esta implementação gradual garante que você tenha uma vitória fácil rapidamente, podendo depois expandir com as capacidades MCP de forma incremental.
 
@@ -489,11 +550,21 @@ Esta implementação gradual garante que você tenha uma vitória fácil rapidam
 4. **Tracking Completo**: Tokens, tempo, modelo para cada mensagem
 5. **Integração Real**: OpenRouter funcionando com fallback inteligente
 
-### 🚀 **PRÓXIMAS FASES**
-- **Fase 3**: MCP Tools para capacidades avançadas de análise n8n
+### 🚀 **FASE ATUAL: MCP Tools Implementation ✅ COMPLETA**
+- **✅ Fase 3.1**: Refatoração para remover context hardcoded
+- **✅ Fase 3.2**: Setup MCP Server com @modelcontextprotocol/sdk
+- **✅ Fase 3.3**: Tool getWorkflow com API n8n real
+- **✅ Fase 3.4**: Bridge WebSocket ↔ MCP integration
+- **✅ Fase 3.5**: Tool execution flow completo
+- **✅ Fase 3.6**: Correções de schema e API
+- **✅ Fase 3.7**: Correção de mensagens duplicadas
+- **✅ Fase 3.8**: Testes e validação completos
+
+### 🔮 **PRÓXIMAS FASES FUTURAS**
+- **Fase 3.1**: Expansão MCP Tools (executeWorkflow, getExecutionLogs, etc.)
 - **Performance**: Cache e otimizações
 - **Analytics**: Dashboard de métricas de uso
-- **Billing**: Sistema de cobrança baseado em tokens
+- **Billing**: Sistema de cobrança baseado em tokens trackados
 
 ### 📊 **MÉTRICAS DE SUCESSO**
 - ✅ **0ms** de delay no streaming
@@ -501,5 +572,9 @@ Esta implementação gradual garante que você tenha uma vitória fácil rapidam
 - ✅ **8 modelos** disponíveis
 - ✅ **Tracking completo** de tokens/custo
 - ✅ **Fallback** automático se OpenRouter falhar
+- ✅ **MCP Tools** funcionando com n8n API real
+- ✅ **Context dinâmico** via tools (não hardcoded)
+- ✅ **WorkflowId fixo** da sessão
+- ✅ **Mensagens únicas** (sem duplicação)
 
-**Status**: 🎉 **AGENTE COMPLETO E OPERACIONAL** - Sistema principal 100% funcional, pronto para produção.
+**Status**: 🎉 **AGENTE MCP COMPLETO E OPERACIONAL** - Sistema com Model Context Protocol 100% funcional, acesso real ao n8n, pronto para produção.

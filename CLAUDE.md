@@ -105,11 +105,16 @@ Private: / (dashboard), /connections, /library, /settings, /workflow/:id
 4. **Agente de IA** (✅ Implementado)
    - Chat em tempo real com streaming via WebSocket
    - Integração completa com OpenRouter (8 modelos Programming)
+   - **Sistema MCP (Model Context Protocol)** com tool getWorkflow
+   - **Acesso dinâmico a workflows n8n** via API real (não hardcoded)
    - Persistência de histórico por workflow no Supabase
    - Sistema completo de tracking de tokens e custos
    - Seleção dinâmica de modelos (Claude, GPT-4o, Llama, DeepSeek, WizardCoder)
    - Fallback inteligente e tratamento de erros
    - Interface profissional como ChatGPT/Claude
+   - **WorkflowId fixo da sessão** para garantir context correto
+   - **Detecção automática de tools** (palavras-chave + padrões explícitos)
+   - **Mensagens únicas** (correção de duplicação implementada)
 
 5. **Pagamentos** (❌ Não Implementado)
    - Integração com Stripe pendente
@@ -121,10 +126,15 @@ Private: / (dashboard), /connections, /library, /settings, /workflow/:id
 - Biblioteca de templates não implementada
 - Carregamento de histórico na primeira visualização (issue menor)
 
-### New Capabilities (Agente de IA)
+### New Capabilities (Agente de IA + MCP)
 - **Real-time Chat**: Streaming de respostas em tempo real
 - **Multiple Models**: 8 modelos especializados em programação
+- **MCP Tools**: Model Context Protocol com tool getWorkflow funcionando
+- **Dynamic Context**: Acesso real a workflows n8n via API (não hardcoded)
 - **Token Tracking**: Input/output tokens + tempo de resposta + modelo usado
 - **Cost Management**: Base completa para implementar cobrança
-- **Scalable Architecture**: WebSocket + Supabase + RLS + Service Role
+- **Scalable Architecture**: WebSocket + MCP + Supabase + RLS + Service Role
 - **Fallback System**: Mock responses se OpenRouter falhar
+- **Smart Tool Detection**: Detecção automática + padrões explícitos
+- **Session-based Context**: WorkflowId fixo da sessão para garantir dados corretos
+- **Duplicate Prevention**: Sistema robusto contra mensagens duplicadas

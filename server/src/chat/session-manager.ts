@@ -198,7 +198,7 @@ export class ChatSessionManager {
       }
 
       // Deletar mensagens da sessão
-      const { error } = await supabase
+      const { error } = await this.getServiceClient()
         .from('chat_messages')
         .delete()
         .eq('session_id', session.id);
@@ -221,7 +221,7 @@ export class ChatSessionManager {
    */
   async updateMessageMetadata(messageId: string, metadata: any): Promise<boolean> {
     try {
-      const { error } = await supabase
+      const { error } = await this.getServiceClient()
         .from('chat_messages')
         .update({ metadata })
         .eq('id', messageId);
@@ -243,15 +243,15 @@ export class ChatSessionManager {
    */
   async getSessionStats(sessionId: string) {
     try {
-      const { data: stats, error } = await supabase
+      const { data: stats, error } = await this.getServiceClient()
         .from('chat_messages')
         .select('role')
         .eq('session_id', sessionId);
 
       if (error) throw error;
 
-      const userMessages = stats?.filter(m => m.role === 'user').length || 0;
-      const assistantMessages = stats?.filter(m => m.role === 'assistant').length || 0;
+      const userMessages = stats?.filter((m: any) => m.role === 'user').length || 0;
+      const assistantMessages = stats?.filter((m: any) => m.role === 'assistant').length || 0;
 
       return {
         total: stats?.length || 0,
