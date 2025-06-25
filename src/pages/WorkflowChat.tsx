@@ -33,6 +33,9 @@ const WorkflowChat: React.FC = () => {
   const [selectedModel, setSelectedModel] = useState('gpt-4o-mini');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  // Find current workflow first
+  const currentWorkflow = workflows.find(w => w.id === workflowId);
+
   const { 
     messages, 
     isConnected,
@@ -57,9 +60,6 @@ const WorkflowChat: React.FC = () => {
   const updateWorkflowMutation = useUpdateWorkflow();
   const { showAlert } = useAlert();
 
-  // Find current workflow
-  const currentWorkflow = workflows.find(w => w.id === workflowId);
-
   useEffect(() => {
     if (currentWorkflow && currentWorkflow.id !== selectedWorkflow?.id) {
       setSelectedWorkflow(currentWorkflow);
@@ -72,7 +72,7 @@ const WorkflowChat: React.FC = () => {
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages, isTyping]);
+  }, [messages, currentResponse]);
 
   const handleAttachmentSelect = (item: { id: string; name: string; type: 'document' | 'execution' }) => {
     addAttachment(item, inputMessage, setInputMessage);

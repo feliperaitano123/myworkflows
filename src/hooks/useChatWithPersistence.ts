@@ -57,7 +57,6 @@ export const useChatWithPersistence = ({
   } = useAIAgent({ url: wsUrl });
 
   const currentWorkflowId = useRef<string | undefined>(workflowId);
-  const wsRef = useRef<WebSocket | null>(null);
 
   // Converter mensagens do WebSocket para nosso formato
   const convertWSMessage = useCallback((wsMsg: any): ChatMessage => {
@@ -95,15 +94,7 @@ export const useChatWithPersistence = ({
 
     try {
       // Enviar request para buscar histórico via WebSocket
-      if (wsRef.current?.readyState === WebSocket.OPEN) {
-        wsRef.current.send(JSON.stringify({
-          type: 'get_history',
-          workflowId: targetWorkflowId,
-          limit: 50
-        }));
-      }
-
-      // TODO: Escutar resposta com histórico
+      // TODO: Implementar get_history no backend
       // Por agora, limpar mensagens antigas
       setMessages([]);
       
@@ -164,14 +155,7 @@ export const useChatWithPersistence = ({
     try {
       setError(null);
 
-      // Enviar request para limpar chat via WebSocket
-      if (wsRef.current?.readyState === WebSocket.OPEN) {
-        wsRef.current.send(JSON.stringify({
-          type: 'clear_chat',
-          workflowId
-        }));
-      }
-
+      // TODO: Implementar clear_chat no backend
       // Limpar mensagens localmente
       setMessages([]);
       clearWSMessages();
