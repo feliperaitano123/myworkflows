@@ -58,6 +58,25 @@ serve(async (req) => {
       )
     }
 
+    // Validate API key format - ensure it's a valid string
+    if (typeof n8n_api_key !== 'string' || n8n_api_key.trim().length === 0) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          workflows: [],
+          message: 'Invalid API key format',
+          error: 'INVALID_API_KEY_FORMAT'
+        } as Response),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 400
+        }
+      )
+    }
+
+    // Sanitize API key - remove any potential non-ASCII characters
+    const sanitizedApiKey = n8n_api_key.trim().replace(/[^\x20-\x7E]/g, '')
+
     // Validate URL format
     try {
       new URL(n8n_url)
@@ -79,7 +98,7 @@ serve(async (req) => {
     // Remove trailing slash from URL
     const baseUrl = n8n_url.replace(/\/$/, '')
 
-    // Build query parameters
+    // Build query parameters according to n8n API documentation
     const params = new URLSearchParams()
     if (limit) params.append('limit', limit.toString())
     if (active !== undefined) params.append('active', active.toString())
@@ -93,22 +112,23 @@ serve(async (req) => {
       const response = await fetch(workflowsUrl, {
         method: 'GET',
         headers: {
-          'X-N8N-API-KEY': n8n_api_key,
+          'X-N8N-API-KEY': sanitizedApiKey,
           'Content-Type': 'application/json'
         }
       })
 
       if (response.status === 200) {
         const data = await response.json()
+        console.log('n8n API response:', JSON.stringify(data, null, 2))
         
-        // Extract workflows from n8n response
+        // Extract apenas os campos essenciais from n8n response
         const workflows: N8nWorkflow[] = data.data?.map((workflow: any) => ({
           id: workflow.id,
           name: workflow.name,
           active: workflow.active || false,
-          createdAt: workflow.createdAt,
-          updatedAt: workflow.updatedAt,
-          tags: workflow.tags || []
+          createdAt: workflow.createdAt || '',
+          updatedAt: workflow.updatedAt || '',
+          tags: [] // Simplificado para reduzir payload
         })) || []
 
         return new Response(
@@ -138,11 +158,12 @@ serve(async (req) => {
         )
       } else {
         const errorText = await response.text()
+        console.log(`n8n API error - Status: ${response.status}, Body: ${errorText}`)
         return new Response(
           JSON.stringify({
             success: false,
             workflows: [],
-            message: `n8n server returned status ${response.status}`,
+            message: `n8n server returned status ${response.status}: ${errorText}`,
             error: 'SERVER_ERROR'
           } as Response),
           {

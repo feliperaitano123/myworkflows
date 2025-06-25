@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { type Connection } from '@/hooks/useConnections';
 
 export interface N8nWorkflow {
   id: string;
@@ -38,11 +39,11 @@ export interface ImportWorkflowResponse {
 }
 
 export interface CreateWorkflowData {
-  connection_id: string;
-  n8n_workflow_id: string;
+  workflow_id: string;
+  n8n_connection_id: string;
   name: string;
   active: boolean;
-  workflow_data: any;
+  description?: string;
 }
 
 export const useN8nWorkflows = () => {
@@ -56,16 +57,32 @@ export const useN8nWorkflows = () => {
         throw new Error('User not authenticated');
       }
 
-      // Buscar dados da conexão no banco
-      const { data: connection, error: connectionError } = await supabase
-        .from('connections')
-        .select('*')
-        .eq('id', connectionId)
-        .eq('user_id', user.id)
-        .single();
+      // Verificar se a conexão está ativa primeiro usando cache do React Query
+      const cachedConnections = queryClient.getQueryData(['connections', user.id]) as Connection[] | undefined;
+      const cachedConnection = cachedConnections?.find(conn => conn.id === connectionId);
+      
+      if (cachedConnection && !cachedConnection.active) {
+        throw new Error('Connection is not active');
+      }
 
-      if (connectionError || !connection) {
-        throw new Error('Connection not found');
+      // Buscar dados da conexão no banco com campos específicos apenas se não estiver no cache
+      let connection = cachedConnection;
+      if (!connection) {
+        const { data: connectionData, error: connectionError } = await supabase
+          .from('connections')
+          .select('id, n8n_url, n8n_api_key, active')
+          .eq('id', connectionId)
+          .eq('user_id', user.id)
+          .single();
+
+        if (connectionError || !connectionData) {
+          throw new Error('Connection not found');
+        }
+        connection = connectionData;
+      }
+
+      if (!connection.active) {
+        throw new Error('Connection is not active');
       }
 
       // Chamar Edge Function para buscar workflows
@@ -73,7 +90,10 @@ export const useN8nWorkflows = () => {
         body: {
           n8n_url: connection.n8n_url,
           n8n_api_key: connection.n8n_api_key,
-          limit: 100
+          limit: 50
+        },
+        headers: {
+          'Connection': 'keep-alive'
         }
       });
 
@@ -99,16 +119,16 @@ export const useN8nWorkflows = () => {
         throw new Error('User not authenticated');
       }
 
-      // Buscar dados da conexão no banco
-      const { data: connection, error: connectionError } = await supabase
-        .from('connections')
-        .select('*')
-        .eq('id', connectionId)
-        .eq('user_id', user.id)
-        .single();
-
-      if (connectionError || !connection) {
-        throw new Error('Connection not found');
+      // Usar conexão do cache se disponível
+      const cachedConnections = queryClient.getQueryData(['connections', user.id]) as Connection[] | undefined;
+      const connection = cachedConnections?.find(conn => conn.id === connectionId);
+      
+      if (!connection) {
+        throw new Error('Connection not found in cache. Please refresh connections.');
+      }
+      
+      if (!connection.active) {
+        throw new Error('Connection is not active');
       }
 
       // Chamar Edge Function para importar workflow
@@ -117,6 +137,9 @@ export const useN8nWorkflows = () => {
           n8n_url: connection.n8n_url,
           n8n_api_key: connection.n8n_api_key,
           workflow_id: workflowId
+        },
+        headers: {
+          'Connection': 'keep-alive'
         }
       });
 
@@ -133,17 +156,18 @@ export const useN8nWorkflows = () => {
 
       // Salvar workflow no banco de dados
       const workflowData: CreateWorkflowData = {
-        connection_id: connectionId,
-        n8n_workflow_id: importResponse.workflow.id,
+        workflow_id: importResponse.workflow.id,
+        n8n_connection_id: connectionId,
         name: importResponse.workflow.name,
         active: importResponse.workflow.active,
-        workflow_data: importResponse.workflow
+        description: `Imported from n8n on ${new Date().toISOString()}`
       };
 
       const { data: savedWorkflow, error: saveError } = await supabase
         .from('workflows')
         .insert({
           ...workflowData,
+          connection_id: connectionId, // Para compatibilidade
           user_id: user.id
         })
         .select()

@@ -41,7 +41,7 @@ export const ImportWorkflowModal: React.FC<ImportWorkflowModalProps> = ({
 
   // Buscar workflows quando conexão é selecionada
   useEffect(() => {
-    if (selectedConnection && open) {
+    if (selectedConnection && open && !isFetchingWorkflows) {
       setWorkflows([]);
       setSelectedWorkflow('');
       setFetchError('');
@@ -63,7 +63,7 @@ export const ImportWorkflowModal: React.FC<ImportWorkflowModalProps> = ({
         }
       });
     }
-  }, [selectedConnection, open, fetchWorkflows]);
+  }, [selectedConnection, open]);
 
   const handleImport = async () => {
     if (!selectedConnection || !selectedWorkflow) return;

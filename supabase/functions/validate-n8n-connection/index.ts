@@ -43,6 +43,24 @@ serve(async (req) => {
       )
     }
 
+    // Validate API key format - ensure it's a valid string
+    if (typeof n8n_api_key !== 'string' || n8n_api_key.trim().length === 0) {
+      return new Response(
+        JSON.stringify({
+          valid: false,
+          message: 'Invalid API key format',
+          error: 'INVALID_API_KEY_FORMAT'
+        } as Response),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 400
+        }
+      )
+    }
+
+    // Sanitize API key - remove any potential non-ASCII characters
+    const sanitizedApiKey = n8n_api_key.trim().replace(/[^\x20-\x7E]/g, '')
+
     // Validate URL format
     try {
       new URL(n8n_url)
@@ -70,7 +88,7 @@ serve(async (req) => {
       const response = await fetch(auditUrl, {
         method: 'POST',
         headers: {
-          'X-N8N-API-KEY': n8n_api_key,
+          'X-N8N-API-KEY': sanitizedApiKey,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({})

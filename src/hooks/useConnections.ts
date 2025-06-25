@@ -53,6 +53,9 @@ export const useConnections = () => {
       return data as Connection[];
     },
     enabled: !!user?.id,
+    staleTime: 1000 * 60 * 5, // 5 minutes
+    gcTime: 1000 * 60 * 10, // 10 minutes
+    refetchOnWindowFocus: false,
   });
 };
 
@@ -145,7 +148,10 @@ export const useValidateConnection = () => {
   return useMutation({
     mutationFn: async ({ n8n_url, n8n_api_key }: { n8n_url: string; n8n_api_key: string }): Promise<ValidationResponse> => {
       const { data, error } = await supabase.functions.invoke('validate-n8n-connection', {
-        body: { n8n_url, n8n_api_key }
+        body: { n8n_url, n8n_api_key },
+        headers: {
+          'Connection': 'keep-alive'
+        }
       });
 
       if (error) {
