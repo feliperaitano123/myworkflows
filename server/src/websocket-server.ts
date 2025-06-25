@@ -392,7 +392,8 @@ Você tem acesso a ferramentas que podem:
         session.sessionId,
         tokenCallback,
         model,
-        workflowId
+        workflowId,
+        chatSessionId
       );
 
       // Salvar resposta completa no banco

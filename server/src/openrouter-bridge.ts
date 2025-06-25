@@ -1,14 +1,17 @@
 import WebSocket from 'ws';
 import { WSMessage } from './types/agent';
 import { MyWorkflowsMCPClient } from './mcp/mcp-client';
+import { ChatSessionManager } from './chat/session-manager';
 
 export class OpenRouterBridge {
   private apiKey: string;
   private mcpClient: MyWorkflowsMCPClient;
+  private chatSessionManager: ChatSessionManager;
 
   constructor(mcpClient: MyWorkflowsMCPClient) {
     this.apiKey = process.env.OPENROUTER_API_KEY || '';
     this.mcpClient = mcpClient;
+    this.chatSessionManager = new ChatSessionManager();
     if (!this.apiKey) {
       console.warn('OPENROUTER_API_KEY not configured - using mock responses');
     }
@@ -22,7 +25,8 @@ export class OpenRouterBridge {
     sessionId: string,
     onToken?: (token: string) => void,
     model: string = 'anthropic/claude-3-haiku',
-    workflowId?: string
+    workflowId?: string,
+    chatSessionId?: string
   ): Promise<string> {
     try {
       console.log(`🤖 OpenRouter Bridge - Processando mensagem: "${userMessage}"`);
@@ -37,7 +41,7 @@ export class OpenRouterBridge {
       
       // Tentar OpenRouter real
       try {
-        return await this.processOpenRouterRequestWithTools(ws, userMessage, systemPrompt, userId, sessionId, onToken, model, workflowId);
+        return await this.processOpenRouterRequestWithTools(ws, userMessage, systemPrompt, userId, sessionId, onToken, model, workflowId, chatSessionId);
       } catch (error) {
         console.log(`❌ OpenRouter falhou:`, (error as Error).message);
         console.log(`🔄 Usando mock como fallback`);
@@ -64,7 +68,8 @@ export class OpenRouterBridge {
     systemPrompt: string,
     sessionId: string,
     onToken?: (token: string) => void,
-    model: string = 'anthropic/claude-3-haiku'
+    model: string = 'anthropic/claude-3-haiku',
+    chatHistory: Array<{role: string, content: string}> = []
   ): Promise<string> {
     console.log(`🔑 Enviando para OpenRouter com modelo: ${model}`);
 
@@ -80,6 +85,7 @@ export class OpenRouterBridge {
         model: model,
         messages: [
           { role: 'system', content: systemPrompt },
+          ...chatHistory,
           { role: 'user', content: userMessage }
         ],
         stream: true,
@@ -113,74 +119,63 @@ export class OpenRouterBridge {
     sessionId: string,
     onToken?: (token: string) => void,
     model: string = 'anthropic/claude-3-haiku',
-    workflowId?: string
+    workflowId?: string,
+    chatSessionId?: string
   ): Promise<string> {
     console.log(`🔧 MCP: Processando mensagem com suporte a tools`);
 
-    // 1. Criar system prompt melhorado com informações de tools
+    // 1. Buscar histórico da conversa se disponível
+    const chatHistory = await this.getChatHistory(chatSessionId, userId);
+    console.log(`📚 Histórico carregado: ${chatHistory.length} mensagens`);
+
+    // 2. Criar system prompt melhorado com informações de tools
     const enhancedSystemPrompt = await this.buildEnhancedSystemPrompt(systemPrompt);
     
-    // 2. Primeira interação com o agente
-    let fullResponse = await this.processOpenRouterRequest(
-      ws, userMessage, enhancedSystemPrompt, sessionId, onToken, model
-    );
-
-    // 3. Detectar se o agente quer usar tools
-    console.log(`🔍 MCP: Analisando resposta do agente para detectar tool calls...`);
-    console.log(`📝 MCP: Resposta completa: "${fullResponse.substring(0, 200)}..."`);
+    // 3. Detectar se mensagem precisa de tools ANTES de chamar OpenRouter
+    const needsTool = this.detectToolNeed(userMessage);
     
-    const toolCall = this.detectToolCall(fullResponse);
-    
-    if (toolCall) {
-      console.log(`✅ MCP: TOOL DETECTADA! Nome: '${toolCall.name}', Args:`, toolCall.args);
-      
-      if (this.mcpClient.connected) {
-        console.log(`🔧 MCP: Cliente conectado, executando tool...`);
+    if (needsTool && this.mcpClient.connected) {
+      console.log(`🔧 MCP: Detectado necessidade de tool - executando ANTES da chamada OpenRouter`);
       
       try {
-        // 4. Executar tool via MCP
-        const toolResult = await this.executeTool(toolCall.name, toolCall.args, userId, workflowId);
+        // 4. Executar tool primeiro
+        const toolResult = await this.executeTool('getWorkflow', {}, userId, workflowId);
         
-        // 5. Continuar conversa com resultado da tool
-        const toolResultMessage = `Resultado da ferramenta ${toolCall.name}:\n\n${toolResult}`;
+        // 5. Incluir resultado da tool no context da mensagem única
+        const enhancedUserMessage = `${userMessage}\n\n[CONTEXT_FROM_TOOL] Dados do workflow:\n${toolResult}`;
         
-        console.log(`🔧 MCP: Enviando resultado da tool de volta para o agente`);
-        
-        const finalResponse = await this.processOpenRouterRequest(
-          ws, 
-          `${userMessage}\n\n[TOOL_RESULT] ${toolResultMessage}`, 
-          enhancedSystemPrompt, 
-          sessionId, 
-          onToken, 
-          model
+        // 6. Uma única chamada OpenRouter com context completo
+        const fullResponse = await this.processOpenRouterRequest(
+          ws, enhancedUserMessage, enhancedSystemPrompt, sessionId, onToken, model, chatHistory
         );
         
-        return finalResponse;
+        return fullResponse;
         
       } catch (toolError) {
         console.error(`❌ MCP: Erro ao executar tool:`, toolError);
         
-        // Informar o erro ao agente
-        const errorMessage = `Erro ao executar ferramenta: ${(toolError as Error).message}`;
-        const errorResponse = await this.processOpenRouterRequest(
-          ws,
-          `${userMessage}\n\n[TOOL_ERROR] ${errorMessage}`,
-          enhancedSystemPrompt,
-          sessionId,
-          onToken,
-          model
+        // Continuar sem tool em caso de erro
+        const errorMessage = `Não foi possível acessar os dados do workflow: ${(toolError as Error).message}`;
+        const enhancedUserMessage = `${userMessage}\n\n[TOOL_ERROR] ${errorMessage}`;
+        
+        const fullResponse = await this.processOpenRouterRequest(
+          ws, enhancedUserMessage, enhancedSystemPrompt, sessionId, onToken, model, chatHistory
         );
         
-        return errorResponse;
+        return fullResponse;
       }
     } else {
-      console.log(`❌ MCP: Cliente não conectado, não é possível executar tools`);
-    }
-    } else {
-      console.log(`❌ MCP: Nenhuma tool detectada na resposta do agente`);
+      console.log(`📝 MCP: Processamento normal sem tools`);
+      
+      // 7. Chamada normal com histórico
+      const fullResponse = await this.processOpenRouterRequest(
+        ws, userMessage, enhancedSystemPrompt, sessionId, onToken, model, chatHistory
+      );
+      
+      return fullResponse;
     }
 
-    return fullResponse;
+    // Esta seção foi removida - a lógica agora está integrada acima
   }
 
   private async processStreamResponse(
@@ -428,5 +423,64 @@ export class OpenRouterBridge {
       console.error(`❌ MCP: Erro ao executar tool '${toolName}':`, error);
       throw error;
     }
+  }
+
+  /**
+   * Busca histórico de chat para incluir contexto na conversa
+   */
+  private async getChatHistory(chatSessionId?: string, userId?: string): Promise<Array<{role: string, content: string}>> {
+    if (!chatSessionId || !userId) {
+      console.log('📭 Sem chatSessionId ou userId - sem histórico');
+      return [];
+    }
+
+    try {
+      const messages = await this.chatSessionManager.getSessionHistory(chatSessionId, '');
+      
+      // Converter para formato OpenRouter (últimas 10 mensagens para evitar context muito grande)
+      const history = messages
+        .slice(-10) // Últimas 10 mensagens
+        .map(msg => ({
+          role: msg.role,
+          content: msg.content
+        }));
+
+      console.log(`📚 Histórico formatado: ${history.length} mensagens`);
+      return history;
+
+    } catch (error) {
+      console.error('❌ Erro ao buscar histórico:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Detecta se a mensagem do usuário precisa de informações do workflow
+   */
+  private detectToolNeed(userMessage: string): boolean {
+    const needsWorkflowKeywords = [
+      'workflow',
+      'nodos',
+      'nodes',
+      'configuração',
+      'configurado',
+      'como está',
+      'detalhes',
+      'informações',
+      'dados',
+      'estrutura',
+      'webhook',
+      'trigger',
+      'conexões',
+      'variáveis',
+      'credenciais'
+    ];
+
+    const messageStr = userMessage.toLowerCase();
+    const needsWorkflow = needsWorkflowKeywords.some(keyword => messageStr.includes(keyword));
+
+    console.log(`🔍 Tool Detection: Mensagem "${userMessage.substring(0, 50)}..." ${needsWorkflow ? 'PRECISA' : 'NÃO PRECISA'} de tool`);
+    
+    return needsWorkflow;
   }
 }
