@@ -7,8 +7,9 @@ export interface Workflow {
   id: string;
   workflow_id: string;
   user_id: string;
-  n8n_connection_id: string;
-  json: any;
+  connection_id: string;
+  name: string;
+  active: boolean;
   description?: string;
   created_at: string;
   updated_at: string;
@@ -16,8 +17,9 @@ export interface Workflow {
 
 export interface CreateWorkflowData {
   workflow_id: string;
-  n8n_connection_id: string;
-  json?: any;
+  connection_id: string;
+  name: string;
+  active: boolean;
   description?: string;
 }
 
@@ -58,7 +60,7 @@ export const useWorkflows = () => {
       // Combine the data
       const workflowsWithConnections = workflowsData?.map(workflow => ({
         ...workflow,
-        connections: { name: connectionMap.get(workflow.n8n_connection_id) || 'Unknown Connection' }
+        connections: { name: connectionMap.get(workflow.connection_id) || 'Unknown Connection' }
       })) || [];
 
       return workflowsWithConnections as (Workflow & { connections: { name: string } })[];

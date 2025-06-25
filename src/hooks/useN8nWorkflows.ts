@@ -40,7 +40,7 @@ export interface ImportWorkflowResponse {
 
 export interface CreateWorkflowData {
   workflow_id: string;
-  n8n_connection_id: string;
+  connection_id: string;
   name: string;
   active: boolean;
   description?: string;
@@ -157,7 +157,7 @@ export const useN8nWorkflows = () => {
       // Salvar workflow no banco de dados
       const workflowData: CreateWorkflowData = {
         workflow_id: importResponse.workflow.id,
-        n8n_connection_id: connectionId,
+        connection_id: connectionId,
         name: importResponse.workflow.name,
         active: importResponse.workflow.active,
         description: `Imported from n8n on ${new Date().toISOString()}`
@@ -167,7 +167,6 @@ export const useN8nWorkflows = () => {
         .from('workflows')
         .insert({
           ...workflowData,
-          connection_id: connectionId, // Para compatibilidade
           user_id: user.id
         })
         .select()

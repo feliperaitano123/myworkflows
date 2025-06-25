@@ -41,36 +41,47 @@ export type Database = {
       }
       workflows: {
         Row: {
+          active: boolean | null
+          connection_id: string
           created_at: string | null
           description: string | null
           id: string
-          json: Json | null
-          n8n_connection_id: string
+          name: string
           updated_at: string | null
           user_id: string | null
           workflow_id: string
         }
         Insert: {
+          active?: boolean | null
+          connection_id: string
           created_at?: string | null
           description?: string | null
           id?: string
-          json?: Json | null
-          n8n_connection_id: string
+          name: string
           updated_at?: string | null
           user_id?: string | null
           workflow_id: string
         }
         Update: {
+          active?: boolean | null
+          connection_id?: string
           created_at?: string | null
           description?: string | null
           id?: string
-          json?: Json | null
-          n8n_connection_id?: string
+          name?: string
           updated_at?: string | null
           user_id?: string | null
           workflow_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "workflows_connection_fkey"
+            columns: ["connection_id"]
+            isOneToOne: false
+            referencedRelation: "connections"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
