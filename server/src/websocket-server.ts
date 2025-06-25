@@ -70,7 +70,8 @@ export class AIWebSocketServer {
         const session: UserSession = {
           userId,
           sessionId,
-          connectedAt: new Date()
+          connectedAt: new Date(),
+          userToken: token
         };
 
         this.activeSessions.set(sessionId, session);
@@ -158,15 +159,20 @@ export class AIWebSocketServer {
     session: UserSession
   ): Promise<void> {
     try {
+      console.log(`📨 Mensagem recebida do usuário ${session.userId}: "${message.content}"`);
+      
       // 1. Buscar ou criar sessão de chat no banco
       let chatSessionId = session.chatSessionId;
       if (message.workflowId && !chatSessionId) {
+        console.log(`🗃️ Criando sessão para workflow: ${message.workflowId}`);
         chatSessionId = await this.chatSessionManager.getOrCreateSession(
           session.userId, 
-          message.workflowId
+          message.workflowId,
+          session.userToken
         );
         session.chatSessionId = chatSessionId;
         session.workflowId = message.workflowId;
+        console.log(`✅ Sessão criada: ${chatSessionId}`);
       }
 
       // 2. Salvar mensagem do usuário no banco
@@ -176,6 +182,7 @@ export class AIWebSocketServer {
           chatSessionId,
           'user',
           message.content,
+          session.userToken,
           { attachments: message.attachments }
         );
 
@@ -208,6 +215,7 @@ Instruções:
 - Use exemplos quando possível${workflowContext}`;
 
       // 5. Stream resposta via OpenRouter e salvar no banco
+      console.log(`🚀 Iniciando streaming de resposta...`);
       await this.streamAndSaveResponse(
         ws,
         message.content,
@@ -215,6 +223,7 @@ Instruções:
         session,
         chatSessionId
       );
+      console.log(`✅ Streaming concluído!`);
 
     } catch (error) {
       console.error('Chat message error:', error);
@@ -237,6 +246,7 @@ Instruções:
       const history = await this.chatSessionManager.getWorkflowHistory(
         session.userId,
         message.workflowId,
+        session.userToken,
         message.limit || 50
       );
 
@@ -268,7 +278,8 @@ Instruções:
     try {
       const success = await this.chatSessionManager.clearWorkflowChat(
         session.userId,
-        message.workflowId
+        message.workflowId,
+        session.userToken
       );
 
       if (success) {
@@ -332,6 +343,7 @@ Instruções:
           chatSessionId,
           'assistant',
           fullResponse,
+          session.userToken,
           { 
             response_time_ms: responseTime,
             model: 'anthropic/claude-3-haiku' // TODO: pegar do config

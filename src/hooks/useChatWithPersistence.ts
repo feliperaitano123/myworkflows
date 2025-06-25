@@ -79,9 +79,43 @@ export const useChatWithPersistence = ({
 
   // Escutar mensagens especiais do WebSocket
   useEffect(() => {
-    // TODO: Implementar listener para 'history' e outras mensagens especiais
-    // Por agora, vamos simular o carregamento
-  }, [wsMessages]);
+    if (!wsMessages || wsMessages.length === 0) return;
+    
+    const latestMessage = wsMessages[wsMessages.length - 1];
+    console.log('📨 Mensagem WebSocket recebida:', latestMessage);
+    
+    // Processar diferentes tipos de mensagem
+    switch (latestMessage.type) {
+      case 'message_saved':
+        console.log('💾 Mensagem salva confirmada');
+        break;
+      case 'complete':
+        console.log('✅ Streaming completo - adicionando resposta às mensagens');
+        if (currentResponse) {
+          const assistantMessage: ChatMessage = {
+            id: Date.now().toString(),
+            role: 'assistant',
+            content: currentResponse,
+            timestamp: new Date()
+          };
+          setMessages(prev => [...prev, assistantMessage]);
+        }
+        break;
+      case 'history':
+        console.log('📖 Histórico recebido:', latestMessage.history?.length || 0, 'mensagens');
+        if (latestMessage.history) {
+          const historyMessages = latestMessage.history.map((msg: any) => convertWSMessage(msg));
+          setMessages(historyMessages);
+        }
+        setIsLoadingHistory(false);
+        break;
+      case 'error':
+        console.error('❌ Erro WebSocket:', latestMessage.error);
+        setError(latestMessage.error || 'Erro desconhecido');
+        setIsLoadingHistory(false);
+        break;
+    }
+  }, [wsMessages, currentResponse]);
 
   const loadChatHistory = async (targetWorkflowId: string) => {
     if (!isConnected) {
@@ -93,17 +127,21 @@ export const useChatWithPersistence = ({
     setError(null);
 
     try {
-      // Enviar request para buscar histórico via WebSocket
-      // TODO: Implementar get_history no backend
-      // Por agora, limpar mensagens antigas
+      // Limpar mensagens antigas primeiro
       setMessages([]);
       
+      // Por agora, vamos simular carregamento sem requisição
+      // TODO: Implementar requisição real de histórico
+      console.log('📖 Simulando carregamento de histórico...');
+      
       console.log(`📖 Histórico solicitado para workflow: ${targetWorkflowId}`);
+      
+      // Simular fim do loading após um tempo
+      setTimeout(() => setIsLoadingHistory(false), 1000);
       
     } catch (error) {
       console.error('❌ Erro ao carregar histórico:', error);
       setError('Erro ao carregar histórico do chat');
-    } finally {
       setIsLoadingHistory(false);
     }
   };
@@ -177,11 +215,7 @@ export const useChatWithPersistence = ({
   }, [currentResponse]);
 
   // Adicionar resposta completa quando streaming terminar
-  useEffect(() => {
-    // Escutar quando uma resposta completa chegar
-    // TODO: Implementar listener para mensagem 'complete' do WebSocket
-    // e adicionar a resposta completa às mensagens
-  }, []);
+  // (implementado no listener de wsMessages acima)
 
   const connectionStatus = {
     isConnected,

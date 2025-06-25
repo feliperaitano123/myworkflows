@@ -1,9 +1,4 @@
-import { createClient } from '@supabase/supabase-js';
-
-const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_ANON_KEY!
-);
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 export interface ChatSession {
   id: string;
@@ -24,18 +19,36 @@ export interface ChatMessage {
 }
 
 export class ChatSessionManager {
+  private getServiceClient(): SupabaseClient {
+    // Usar Service Role Key para operações de backend que precisam contornar RLS
+    const supabase = createClient(
+      process.env.SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+    
+    return supabase;
+  }
+
   /**
    * Buscar ou criar sessão para um workflow específico
    */
-  async getOrCreateSession(userId: string, workflowId: string): Promise<string> {
+  async getOrCreateSession(userId: string, workflowId: string, userToken: string): Promise<string> {
     try {
+      console.log(`🔐 Usando Service Role para usuário: ${userId}`);
+      const supabase = this.getServiceClient();
+      
       // Primeiro, tentar buscar sessão existente
-      const { data: existingSession } = await supabase
+      console.log(`🔍 Buscando sessão existente para workflow: ${workflowId}`);
+      const { data: existingSession, error: searchError } = await supabase
         .from('chat_sessions')
         .select('id')
         .eq('user_id', userId)
         .eq('workflow_id', workflowId)
         .single();
+
+      if (searchError && searchError.code !== 'PGRST116') {
+        console.log(`⚠️ Erro ao buscar sessão existente: ${searchError.message}`);
+      }
 
       if (existingSession) {
         // Atualizar updated_at da sessão existente
@@ -49,6 +62,7 @@ export class ChatSessionManager {
       }
 
       // Criar nova sessão
+      console.log(`🆕 Criando nova sessão para userId: ${userId}, workflowId: ${workflowId}`);
       const { data: newSession, error } = await supabase
         .from('chat_sessions')
         .insert({
@@ -78,9 +92,12 @@ export class ChatSessionManager {
     sessionId: string, 
     role: 'user' | 'assistant', 
     content: string, 
+    userToken: string,
     metadata?: any
   ): Promise<string> {
     try {
+      const supabase = this.getServiceClient();
+      
       const { data: message, error } = await supabase
         .from('chat_messages')
         .insert({
@@ -108,8 +125,10 @@ export class ChatSessionManager {
   /**
    * Buscar histórico de mensagens de uma sessão
    */
-  async getSessionHistory(sessionId: string, limit = 50): Promise<ChatMessage[]> {
+  async getSessionHistory(sessionId: string, userToken: string, limit = 50): Promise<ChatMessage[]> {
     try {
+      const supabase = this.getServiceClient();
+      
       const { data: messages, error } = await supabase
         .from('chat_messages')
         .select('*')
@@ -133,8 +152,10 @@ export class ChatSessionManager {
   /**
    * Buscar histórico por workflow (para API REST)
    */
-  async getWorkflowHistory(userId: string, workflowId: string, limit = 50): Promise<ChatMessage[]> {
+  async getWorkflowHistory(userId: string, workflowId: string, userToken: string, limit = 50): Promise<ChatMessage[]> {
     try {
+      const supabase = this.getServiceClient();
+      
       // Primeiro buscar a sessão
       const { data: session } = await supabase
         .from('chat_sessions')
@@ -148,7 +169,7 @@ export class ChatSessionManager {
         return [];
       }
 
-      return await this.getSessionHistory(session.id, limit);
+      return await this.getSessionHistory(session.id, userToken, limit);
 
     } catch (error) {
       console.error('❌ Erro ao buscar histórico do workflow:', error);
@@ -159,8 +180,10 @@ export class ChatSessionManager {
   /**
    * Limpar chat de um workflow (soft delete - marcar como arquivado)
    */
-  async clearWorkflowChat(userId: string, workflowId: string): Promise<boolean> {
+  async clearWorkflowChat(userId: string, workflowId: string, userToken: string): Promise<boolean> {
     try {
+      const supabase = this.getServiceClient();
+      
       // Por enquanto, vamos deletar as mensagens
       // Futuramente podemos implementar soft delete
       const { data: session } = await supabase

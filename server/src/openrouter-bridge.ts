@@ -20,10 +20,15 @@ export class OpenRouterBridge {
     onToken?: (token: string) => void
   ): Promise<string> {
     try {
+      console.log(`🤖 OpenRouter Bridge - Processando mensagem: "${userMessage}"`);
+      
       if (!this.apiKey) {
+        console.log(`⚠️ OPENROUTER_API_KEY não configurada - usando resposta mock`);
         // Mock response para desenvolvimento
         return await this.sendMockResponse(ws, userMessage, sessionId, onToken);
       }
+
+      console.log(`🔑 Enviando para OpenRouter com modelo: anthropic/claude-3-haiku`);
 
       const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
         method: 'POST',
