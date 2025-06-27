@@ -1,135 +1,23 @@
-
-import React, { useState, useEffect, useRef } from 'react';
+import React from 'react';
 import { useParams } from 'react-router-dom';
 import { Header } from '@/components/Header';
 import { useWorkflowsContext } from '@/contexts/WorkflowContext';
-import { MessageSquare, Settings as SettingsIcon } from 'lucide-react';
-import { ChatMessage } from '@/components/chat/ChatMessage';
-import { TypingIndicator } from '@/components/chat/TypingIndicator';
-import { EmptyState } from '@/components/chat/EmptyState';
-import { ChatInput } from '@/components/chat/ChatInput';
-import { useChatWithPersistence } from '@/hooks/useChatWithPersistence';
-import { useAttachments } from '@/hooks/useAttachments';
-import { useUpdateWorkflow } from '@/hooks/useWorkflows';
+import { MessageSquare } from 'lucide-react';
 import { useAlert } from '@/components/AlertProvider';
-import { mockDocuments, mockExecutions } from '@/data/mockData';
-
-interface Message {
-  id: string;
-  role: 'user' | 'assistant';
-  content: string;
-  timestamp: Date;
-  attachments?: Array<{
-    id: string;
-    name: string;
-    type: 'document' | 'execution';
-  }>;
-}
 
 const WorkflowChat: React.FC = () => {
   const { workflowId } = useParams<{ workflowId: string }>();
   const { workflows, selectedWorkflow, setSelectedWorkflow } = useWorkflowsContext();
-  const [inputMessage, setInputMessage] = useState('');
-  const [selectedModel, setSelectedModel] = useState('anthropic/claude-3-haiku');
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-
-  // Find current workflow first
-  const currentWorkflow = workflows.find(w => w.id === workflowId);
-
-  const { 
-    messages, 
-    isConnected,
-    isConnecting,
-    isLoadingHistory,
-    currentResponse,
-    connectionStatus,
-    sendMessage: sendToAI,
-    clearChat,
-    error: chatError
-  } = useChatWithPersistence({ 
-    workflowId: currentWorkflow?.id 
-  });
-  const { 
-    selectedAttachments, 
-    isAttachmentSheetOpen, 
-    setIsAttachmentSheetOpen,
-    addAttachment,
-    removeAttachment,
-    clearAttachments
-  } = useAttachments();
-  const updateWorkflowMutation = useUpdateWorkflow();
   const { showAlert } = useAlert();
 
-  useEffect(() => {
+  // Encontrar workflow atual
+  const currentWorkflow = workflows.find(w => w.id === workflowId);
+
+  React.useEffect(() => {
     if (currentWorkflow && currentWorkflow.id !== selectedWorkflow?.id) {
       setSelectedWorkflow(currentWorkflow);
     }
   }, [currentWorkflow, selectedWorkflow, setSelectedWorkflow]);
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages, currentResponse]);
-
-  const handleAttachmentSelect = (item: { id: string; name: string; type: 'document' | 'execution' }) => {
-    addAttachment(item, inputMessage, setInputMessage);
-  };
-
-  const handleRemoveAttachment = (attachmentId: string) => {
-    removeAttachment(attachmentId, inputMessage, setInputMessage);
-  };
-
-  const handleSendMessage = async () => {
-    if (!inputMessage.trim() || !isConnected) return;
-
-    // Enviar mensagem para o agente de IA
-    await sendToAI(
-      inputMessage,
-      selectedAttachments.length > 0 ? selectedAttachments : undefined,
-      selectedModel
-    );
-
-    setInputMessage('');
-    clearAttachments();
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSendMessage();
-    }
-  };
-
-  const formatTime = (date: Date) => {
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  };
-
-  const handleUpdateWorkflowName = async (newName: string) => {
-    if (!currentWorkflow) return;
-
-    try {
-      await updateWorkflowMutation.mutateAsync({
-        id: currentWorkflow.id,
-        data: { name: newName }
-      });
-
-      showAlert({
-        type: 'success',
-        title: 'Workflow Atualizado',
-        message: `Nome alterado para "${newName}" com sucesso!`
-      });
-    } catch (error) {
-      console.error('Error updating workflow name:', error);
-      showAlert({
-        type: 'error',
-        title: 'Erro ao Atualizar',
-        message: 'Não foi possível atualizar o nome do workflow. Tente novamente.'
-      });
-    }
-  };
 
   if (!currentWorkflow) {
     return (
@@ -153,101 +41,15 @@ const WorkflowChat: React.FC = () => {
         subtitle="AI-powered workflow conversation"
         actionButton={{
           label: "Settings",
-          icon: SettingsIcon,
+          icon: MessageSquare,
           onClick: () => console.log('Workflow settings'),
           variant: 'secondary'
         }}
       />
-
-      {/* Messages Area */}
-      <div className="flex-1 overflow-y-auto p-6 space-y-4">
-        {isLoadingHistory && (
-          <div className="flex items-center justify-center p-4">
-            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
-            <span className="ml-2 text-sm text-muted-foreground">Carregando histórico...</span>
-          </div>
-        )}
-
-        {messages.length === 0 && !isLoadingHistory ? (
-          <EmptyState 
-            workflowName={currentWorkflow.name}
-            onSuggestedMessage={setInputMessage}
-          />
-        ) : (
-          <>
-            {messages.map((message) => (
-              <ChatMessage 
-                key={message.id} 
-                message={message} 
-                formatTime={formatTime} 
-              />
-            ))}
-
-            {/* Mostrar resposta em streaming */}
-            {currentResponse && (
-              <div className="flex gap-3">
-                <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
-                  <MessageSquare className="h-4 w-4 text-primary-foreground" />
-                </div>
-                <div className="flex-1 space-y-2">
-                  <div className="bg-muted p-3 rounded-lg">
-                    <p className="text-sm whitespace-pre-wrap">{currentResponse}</p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {!isConnected && isConnecting && <TypingIndicator />}
-
-            {/* Status de conexão e erros */}
-            {(connectionStatus.error || chatError) && (
-              <div className="bg-destructive/10 border border-destructive/20 p-3 rounded-lg">
-                <p className="text-destructive text-sm">
-                  ⚠️ {connectionStatus.error || chatError}
-                </p>
-              </div>
-            )}
-            
-            {!isConnected && !isConnecting && (
-              <div className="bg-muted p-3 rounded-lg">
-                <p className="text-muted-foreground text-sm">
-                  🔌 Conectando ao agente de IA...
-                </p>
-              </div>
-            )}
-
-            {isConnected && (
-              <div className="text-center">
-                <button
-                  onClick={clearChat}
-                  className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  🗑️ Limpar Chat
-                </button>
-              </div>
-            )}
-          </>
-        )}
-        <div ref={messagesEndRef} />
+      {/* Conteúdo futuro do chat será implementado aqui */}
+      <div className="flex-1 flex items-center justify-center text-muted-foreground">
+        <span>Chat do workflow em construção...</span>
       </div>
-
-      {/* Input Area */}
-      <ChatInput
-        inputMessage={inputMessage}
-        setInputMessage={setInputMessage}
-        selectedModel={selectedModel}
-        setSelectedModel={setSelectedModel}
-        isLoading={!isConnected}
-        selectedAttachments={selectedAttachments}
-        isAttachmentSheetOpen={isAttachmentSheetOpen}
-        setIsAttachmentSheetOpen={setIsAttachmentSheetOpen}
-        mockDocuments={mockDocuments}
-        mockExecutions={mockExecutions}
-        onSendMessage={handleSendMessage}
-        onKeyDown={handleKeyDown}
-        onAttachmentSelect={handleAttachmentSelect}
-        onRemoveAttachment={handleRemoveAttachment}
-      />
     </div>
   );
 };

@@ -56,19 +56,19 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggleCollapse 
   return (
     <div
       className={cn(
-        'relative flex flex-col bg-sidebar border-r border-sidebar-border transition-all duration-300 ease-in-out',
+        'relative flex flex-col bg-background border-r border-border transition-all duration-300 ease-in-out',
         isCollapsed ? 'w-16' : 'w-64'
       )}
     >
       {/* Header */}
-      <div className="flex items-center gap-3 px-4 py-6 border-b border-sidebar-border">
+      <div className="flex items-center gap-3 px-4 py-6 border-b border-border">
         <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center flex-shrink-0">
           <Bot className="h-5 w-5 text-primary-foreground" />
         </div>
         {!isCollapsed && (
           <div className="flex flex-col">
-            <h1 className="text-lg font-semibold text-sidebar-foreground">My Workflows</h1>
-            <p className="text-xs text-sidebar-foreground/60">AI-Powered Platform</p>
+            <h1 className="text-lg font-semibold text-foreground">My Workflows</h1>
+            <p className="text-xs text-muted-foreground">AI-Powered Platform</p>
           </div>
         )}
       </div>
@@ -85,8 +85,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggleCollapse 
                   variant="ghost"
                   size="sm"
                   className={cn(
-                    'w-full justify-start gap-3 h-10 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
-                    isActive && 'bg-sidebar-accent text-sidebar-accent-foreground',
+                    'w-full justify-start gap-3 h-10 text-foreground hover:bg-accent hover:text-accent-foreground',
+                    isActive && 'bg-accent text-accent-foreground',
                     isCollapsed && 'justify-center px-2'
                   )}
                 >
@@ -104,15 +104,15 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggleCollapse 
             {!isCollapsed && (
               <>
                 <div className="flex items-center gap-2">
-                  <Workflow className="h-4 w-4 text-sidebar-foreground/60" />
-                  <span className="text-xs font-semibold text-sidebar-foreground/60 uppercase tracking-wider">
+                  <Workflow className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                     Workflows
                   </span>
                 </div>
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-6 w-6 p-0 hover:bg-sidebar-accent"
+                  className="h-6 w-6 p-0 hover:bg-accent"
                   onClick={() => setIsImportModalOpen(true)}
                 >
                   <Plus className="h-3 w-3" />
@@ -123,7 +123,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggleCollapse 
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-8 w-8 p-0 hover:bg-sidebar-accent justify-center"
+                className="h-8 w-8 p-0 hover:bg-accent justify-center"
                 onClick={() => setIsImportModalOpen(true)}
               >
                 <Plus className="h-4 w-4" />
@@ -150,8 +150,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggleCollapse 
                       variant="ghost"
                       size="sm"
                       className={cn(
-                        'w-full justify-start gap-3 h-9 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
-                        isActive && 'bg-sidebar-accent text-sidebar-accent-foreground',
+                        'w-full justify-start gap-3 h-9 text-foreground hover:bg-accent hover:text-accent-foreground',
+                        isActive && 'bg-accent text-accent-foreground',
                         isCollapsed && 'justify-center px-2'
                       )}
                     >
@@ -171,8 +171,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggleCollapse 
             ) : (
               !isCollapsed && (
                 <div className="px-3 py-4 text-center">
-                  <MessageSquare className="h-8 w-8 mx-auto text-sidebar-foreground/40 mb-2" />
-                  <p className="text-xs text-sidebar-foreground/60">No workflows yet</p>
+                  <MessageSquare className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+                  <p className="text-xs text-muted-foreground">No workflows yet</p>
                   <Button 
                     variant="ghost" 
                     size="sm" 
@@ -189,13 +189,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggleCollapse 
       </div>
 
       {/* Collapse Button */}
-      <div className="p-3 border-t border-sidebar-border">
+      <div className="p-3 border-t border-border">
         <Button
           variant="ghost"
           size="sm"
           onClick={onToggleCollapse}
           className={cn(
-            'w-full gap-3 h-10 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
+            'w-full gap-3 h-10 text-foreground hover:bg-accent hover:text-accent-foreground',
             isCollapsed && 'justify-center px-2'
           )}
         >
