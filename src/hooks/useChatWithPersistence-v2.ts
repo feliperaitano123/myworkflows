@@ -243,6 +243,15 @@ export const useChatWithPersistence = (workflowId: string) => {
         setIsLoadingHistory(false);
         break;
 
+      case 'connected':
+        // Conexão confirmada
+        console.log('Conectado ao servidor WebSocket');
+        // Set loading to false after timeout if no history response
+        setTimeout(() => {
+          setIsLoadingHistory(false);
+        }, 5000);
+        break;
+
       case 'tool_start':
       case 'tool_progress':
       case 'tool_complete':

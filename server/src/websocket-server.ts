@@ -162,12 +162,14 @@ export class AIWebSocketServer {
           await this.handleChatMessage(ws, message as ChatMessageRequest, session);
           break;
         case 'get_history':
+          console.log(`🔄 Backend: Processando get_history request`);
           await this.handleGetHistory(ws, message as ChatHistoryRequest, session);
           break;
         case 'clear_chat':
           await this.handleClearChat(ws, message as ClearChatRequest, session);
           break;
         default:
+          console.log(`❌ Backend: Tipo de mensagem não reconhecido: ${message.type}`);
           const errorMessage: WSChatMessage = {
             type: 'error',
             error: 'Tipo de mensagem não reconhecido',
@@ -324,6 +326,7 @@ Você tem acesso a ferramentas que podem:
     try {
       console.log(`📖 Backend: Recebendo get_history para workflow: ${message.workflowId}`);
       console.log(`👤 User: ${session.userId}`);
+      console.log(`🔧 Debug: session object:`, JSON.stringify(session, null, 2));
       
       const history = await this.chatSessionManager.getWorkflowHistory(
         session.userId,
@@ -340,8 +343,9 @@ Você tem acesso a ferramentas que podem:
         sessionId: session.sessionId
       };
 
+      console.log(`📤 Backend: Enviando histórico:`, JSON.stringify(historyMessage, null, 2));
       ws.send(JSON.stringify(historyMessage));
-      console.log(`📤 Backend: Histórico enviado para frontend`);
+      console.log(`✅ Backend: Histórico enviado para frontend`);
 
     } catch (error) {
       console.error('Get history error:', error);
