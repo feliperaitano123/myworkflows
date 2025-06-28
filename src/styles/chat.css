@@ -34,6 +34,11 @@
   animation: slideIn 0.3s ease-out;
 }
 
+/* Smooth transitions */
+.chat-messages > * {
+  transition: all 0.2s ease;
+}
+
 /* Scroll animations */
 .chat-messages {
   scroll-behavior: smooth;

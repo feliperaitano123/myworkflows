@@ -4,6 +4,7 @@ import { ChatMessage } from './ChatMessage-v2';
 import { ChatInput } from './ChatInput-v2';
 import { WelcomeScreen } from './WelcomeScreen';
 import { ChatHeader } from './ChatHeader';
+import { TypingIndicator } from './TypingIndicator';
 import { useWorkflowsContext } from '@/contexts/WorkflowContext';
 
 interface WorkflowChatProps {
@@ -15,16 +16,24 @@ const ChatContent: React.FC<{ workflowId: string }> = ({ workflowId }) => {
   const { workflows } = useWorkflowsContext();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [selectedModel, setSelectedModel] = useState('anthropic/claude-3.5-sonnet');
+  const [isAiThinking, setIsAiThinking] = useState(false);
 
   const currentWorkflow = workflows.find(w => w.id === workflowId);
+  
+  // Check if AI is thinking (user sent message but no AI response yet)
+  useEffect(() => {
+    const lastMessage = messages[messages.length - 1];
+    const hasStreamingMessage = messages.some(m => m.isStreaming);
+    setIsAiThinking(lastMessage?.role === 'user' && !hasStreamingMessage);
+  }, [messages]);
 
   // Auto-scroll quando necessário
   useEffect(() => {
     const lastMessage = messages[messages.length - 1];
-    if (lastMessage?.isStreaming || lastMessage?.role === 'user') {
+    if (lastMessage?.isStreaming || lastMessage?.role === 'user' || isAiThinking) {
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
-  }, [messages]);
+  }, [messages, isAiThinking]);
 
   const handleSendMessage = (content: string) => {
     sendMessage(content, selectedModel);
@@ -59,9 +68,12 @@ const ChatContent: React.FC<{ workflowId: string }> = ({ workflowId }) => {
         ) : messages.length === 0 ? (
           <WelcomeScreen />
         ) : (
-          messages.map(message => (
-            <ChatMessage key={message.id} message={message} />
-          ))
+          <>
+            {messages.map(message => (
+              <ChatMessage key={message.id} message={message} />
+            ))}
+            {isAiThinking && <TypingIndicator />}
+          </>
         )}
         <div ref={messagesEndRef} />
       </div>
