@@ -118,16 +118,18 @@ export const useChatWithPersistence = (workflowId: string) => {
         console.log('WebSocket conectado');
         setIsConnected(true);
         
-        // Solicitar histórico após conectar
-        if (workflowId) {
-          console.log('Solicitando histórico para workflow:', workflowId);
-          setIsLoadingHistory(true);
-          ws.send(JSON.stringify({
-            type: 'get_history',
-            workflowId: workflowId,
-            limit: 50
-          }));
-        }
+        // Aguardar um momento para garantir que a conexão está estável
+        setTimeout(() => {
+          if (workflowId && ws.readyState === WebSocket.OPEN) {
+            console.log('Solicitando histórico para workflow:', workflowId);
+            setIsLoadingHistory(true);
+            ws.send(JSON.stringify({
+              type: 'get_history',
+              workflowId: workflowId,
+              limit: 50
+            }));
+          }
+        }, 100);
       };
 
       ws.onmessage = (event) => {
@@ -138,9 +140,10 @@ export const useChatWithPersistence = (workflowId: string) => {
         console.error('WebSocket erro:', error);
       };
 
-      ws.onclose = () => {
-        console.log('WebSocket desconectado');
+      ws.onclose = (event) => {
+        console.log('WebSocket desconectado:', event.code, event.reason);
         setIsConnected(false);
+        setIsLoadingHistory(false);
       };
 
       wsRef.current = ws;

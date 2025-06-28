@@ -567,47 +567,24 @@ export class OpenRouterBridge {
     try {
       const messages = await this.chatSessionManager.getSessionHistory(chatSessionId, '');
       
-      // Últimas 8 mensagens para evitar grupos incompletos
-      const recentMessages = messages.slice(-8);
+      // Filtar apenas mensagens user/assistant (sem tool calls por enquanto para evitar problemas)
+      const recentMessages = messages
+        .filter(msg => msg.role === 'user' || msg.role === 'assistant')
+        .slice(-6); // Últimas 6 mensagens user/assistant
       
       const history: Array<any> = [];
       
-      for (let i = 0; i < recentMessages.length; i++) {
-        const msg = recentMessages[i];
-        
+      for (const msg of recentMessages) {
         if (msg.role === 'user') {
-          // Mensagem do usuário - formato padrão
           history.push({
             role: 'user',
             content: msg.content
           });
-          
         } else if (msg.role === 'assistant') {
-          // Mensagem do assistant - verificar se tem tool_calls
-          const message: any = {
+          history.push({
             role: 'assistant',
             content: msg.content
-          };
-          
-          // Se tiver tool_calls no metadata, incluir na estrutura OpenRouter
-          if (msg.metadata?.tool_calls && Array.isArray(msg.metadata.tool_calls)) {
-            message.tool_calls = msg.metadata.tool_calls;
-          }
-          
-          history.push(message);
-          
-        } else if (msg.role === 'tool') {
-          // Mensagem de tool - só incluir se a mensagem anterior for assistant com tool_calls
-          const lastMessage = history[history.length - 1];
-          if (lastMessage && lastMessage.role === 'assistant' && lastMessage.tool_calls) {
-            history.push({
-              role: 'tool',
-              content: msg.content,
-              tool_call_id: msg.metadata?.tool_call_id || 'unknown'
-            });
-          } else {
-            console.log(`⚠️ Ignorando mensagem tool órfã: ${msg.metadata?.tool_call_id}`);
-          }
+          });
         }
       }
 

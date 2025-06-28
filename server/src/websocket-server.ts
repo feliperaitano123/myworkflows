@@ -155,6 +155,8 @@ export class AIWebSocketServer {
       if (message.type === 'chat') {
         console.log(`🎯 Modelo recebido: "${message.model || 'não especificado'}"`);
         console.log(`📦 Payload completo:`, message);
+      } else if (message.type === 'get_history') {
+        console.log(`📖 Backend: get_history request para workflow: ${message.workflowId}`);
       }
       
       switch (message.type) {
