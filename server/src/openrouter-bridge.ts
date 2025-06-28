@@ -172,7 +172,13 @@ export class OpenRouterBridge {
           toolCallMessage,
           '', // userToken - Service Role não precisa
           {
-            tool_calls: [
+            toolCalls: [  // Usar toolCalls em vez de tool_calls para frontend
+              {
+                id: toolCallId,
+                name: 'getWorkflow'
+              }
+            ],
+            tool_calls: [  // Manter tool_calls para OpenRouter
               {
                 id: toolCallId,
                 type: 'function',
@@ -186,12 +192,48 @@ export class OpenRouterBridge {
             timestamp: new Date().toISOString()
           }
         );
+
+        // Enviar mensagem do assistant com tool call para frontend
+        ws.send(JSON.stringify({
+          type: 'message_saved',
+          message: {
+            id: assistantMessageId,
+            role: 'assistant',
+            content: toolCallMessage,
+            metadata: {
+              toolCalls: [
+                {
+                  id: toolCallId,
+                  name: 'getWorkflow'
+                }
+              ],
+              model: model
+            },
+            created_at: new Date().toISOString()
+          },
+          sessionId: sessionId
+        }));
         
+        // Enviar notificação de tool call para frontend
+        ws.send(JSON.stringify({
+          type: 'tool_call',
+          toolCallId: toolCallId,
+          sessionId: sessionId
+        }));
+
         // 2. EXECUTAR: Tool silenciosamente
         console.log(`🔧 MCP: Executando getWorkflow...`);
         const toolResult = await this.executeTool('getWorkflow', {}, userId, workflowId);
         
         const toolDuration = Date.now() - toolStartTime;
+
+        // Enviar notificação de tool result para frontend
+        ws.send(JSON.stringify({
+          type: 'tool_result',
+          toolCallId: toolCallId,
+          success: true,
+          sessionId: sessionId
+        }));
 
         // Sinalizar conclusão da tool
         ws.send(JSON.stringify({
