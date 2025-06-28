@@ -50,7 +50,10 @@ export const useChatWithPersistence = (workflowId: string) => {
   const [isConnected, setIsConnected] = useState(false);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
 
-  // Carregar histórico do banco
+  // Carregar histórico do banco (comentado - agora usamos WebSocket)
+  // O histórico agora é carregado via WebSocket após conectar
+  // Isso evita duplicação e garante consistência
+  /*
   useEffect(() => {
     if (!workflowId || !user) return;
 
@@ -88,10 +91,20 @@ export const useChatWithPersistence = (workflowId: string) => {
 
     loadHistory();
   }, [workflowId, user]);
+  */
 
   // Conectar WebSocket
   useEffect(() => {
     if (!user) return;
+
+    // Limpar estado quando trocar de workflow
+    setState({
+      messages: [],
+      streamingMessageId: null,
+      streamingContent: '',
+      toolStatuses: new Map()
+    });
+    processedMessageIds.current.clear();
 
     const connectWebSocket = async () => {
       const { data: { session } } = await supabase.auth.getSession();
