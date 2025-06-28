@@ -184,6 +184,7 @@ export const useChatWithPersistence = (workflowId: string) => {
 
       case 'tool_call':
         // Tool sendo executada
+        console.log('Tool call received:', data);
         setState(prev => {
           const newToolStatuses = new Map(prev.toolStatuses);
           newToolStatuses.set(data.toolCallId, {
@@ -196,6 +197,7 @@ export const useChatWithPersistence = (workflowId: string) => {
 
       case 'tool_result':
         // Resultado da tool
+        console.log('Tool result received:', data);
         setState(prev => {
           const newToolStatuses = new Map(prev.toolStatuses);
           const status = newToolStatuses.get(data.toolCallId);
@@ -227,6 +229,18 @@ export const useChatWithPersistence = (workflowId: string) => {
         console.error('Erro do servidor:', data.error);
         setIsLoadingHistory(false);
         break;
+
+      case 'tool_start':
+      case 'tool_progress':
+      case 'tool_complete':
+      case 'ai_thinking':
+      case 'ai_responding':
+        // Log tool-related messages for debugging
+        console.log(`Tool event: ${data.type}`, data);
+        break;
+
+      default:
+        console.log('Unknown message type:', data.type, data);
     }
   }, [setIsLoadingHistory]);
 
