@@ -102,6 +102,8 @@ NODE_ENV=development
 
 ## Fase 2: Database Schema (Supabase)
 
+Antes de executar as migrações, verique os database schema que já temos. Utilize o mcp do supabase para isso.
+
 ### 2.1 Executar Migrações
 
 ```sql
