@@ -567,12 +567,14 @@ export class OpenRouterBridge {
     try {
       const messages = await this.chatSessionManager.getSessionHistory(chatSessionId, '');
       
-      // Últimas 12 mensagens para incluir grupos completos (user → assistant → tool → assistant)
-      const recentMessages = messages.slice(-12);
+      // Últimas 8 mensagens para evitar grupos incompletos
+      const recentMessages = messages.slice(-8);
       
       const history: Array<any> = [];
       
-      for (const msg of recentMessages) {
+      for (let i = 0; i < recentMessages.length; i++) {
+        const msg = recentMessages[i];
+        
         if (msg.role === 'user') {
           // Mensagem do usuário - formato padrão
           history.push({
@@ -595,12 +597,17 @@ export class OpenRouterBridge {
           history.push(message);
           
         } else if (msg.role === 'tool') {
-          // Mensagem de tool - formato OpenRouter
-          history.push({
-            role: 'tool',
-            content: msg.content,
-            tool_call_id: msg.metadata?.tool_call_id || 'unknown'
-          });
+          // Mensagem de tool - só incluir se a mensagem anterior for assistant com tool_calls
+          const lastMessage = history[history.length - 1];
+          if (lastMessage && lastMessage.role === 'assistant' && lastMessage.tool_calls) {
+            history.push({
+              role: 'tool',
+              content: msg.content,
+              tool_call_id: msg.metadata?.tool_call_id || 'unknown'
+            });
+          } else {
+            console.log(`⚠️ Ignorando mensagem tool órfã: ${msg.metadata?.tool_call_id}`);
+          }
         }
       }
 
