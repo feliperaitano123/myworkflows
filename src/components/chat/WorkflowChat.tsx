@@ -1,16 +1,22 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import { ChatProvider, useChat } from '@/contexts/ChatContext';
 import { ChatMessage } from './ChatMessage-v2';
 import { ChatInput } from './ChatInput-v2';
 import { WelcomeScreen } from './WelcomeScreen';
+import { ChatHeader } from './ChatHeader';
+import { useWorkflowsContext } from '@/contexts/WorkflowContext';
 
 interface WorkflowChatProps {
   workflowId: string;
 }
 
-const ChatContent: React.FC = () => {
+const ChatContent: React.FC<{ workflowId: string }> = ({ workflowId }) => {
   const { messages, sendMessage, isConnected } = useChat();
+  const { workflows } = useWorkflowsContext();
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [selectedModel, setSelectedModel] = useState('anthropic/claude-3.5-sonnet');
+
+  const currentWorkflow = workflows.find(w => w.id === workflowId);
 
   // Auto-scroll quando necessário
   useEffect(() => {
@@ -20,10 +26,30 @@ const ChatContent: React.FC = () => {
     }
   }, [messages]);
 
+  const handleSendMessage = (content: string) => {
+    sendMessage(content, selectedModel);
+  };
+
+  const handleClearChat = () => {
+    // TODO: Implementar clear chat
+    console.log('Clear chat');
+  };
+
   return (
     <div className="flex flex-col h-full">
+      {/* Header */}
+      <ChatHeader
+        workflowName={currentWorkflow?.name || 'Workflow'}
+        selectedModel={selectedModel}
+        onModelChange={setSelectedModel}
+        onClearChat={handleClearChat}
+        isConnected={isConnected}
+        isConnecting={false}
+        messageCount={messages.length}
+      />
+
       {/* Área de mensagens */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div className="flex-1 overflow-y-auto p-4 space-y-2 chat-messages">
         {messages.length === 0 ? (
           <WelcomeScreen />
         ) : (
@@ -36,7 +62,7 @@ const ChatContent: React.FC = () => {
 
       {/* Input */}
       <ChatInput
-        onSend={sendMessage}
+        onSend={handleSendMessage}
         disabled={!isConnected}
       />
     </div>
@@ -48,7 +74,7 @@ export const WorkflowChat: React.FC<WorkflowChatProps> = ({
 }) => {
   return (
     <ChatProvider workflowId={workflowId}>
-      <ChatContent />
+      <ChatContent workflowId={workflowId} />
     </ChatProvider>
   );
 };

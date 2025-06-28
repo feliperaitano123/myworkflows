@@ -1,7 +1,9 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
 import { ToolCallIndicator } from './ToolCallIndicator';
+import { MarkdownContent } from './MarkdownContent';
 import { useChat } from '@/contexts/ChatContext';
+import { User, Bot } from 'lucide-react';
 
 interface ChatMessageProps {
   message: {
@@ -25,25 +27,32 @@ export const ChatMessage = React.memo<ChatMessageProps>(({ message }) => {
   // Não renderizar mensagens de tool
   if (message.role === 'tool') return null;
 
+  const isUser = message.role === 'user';
+
   return (
     <div className={cn(
-      "group relative",
-      message.role === 'user' ? 'flex justify-end' : 'flex justify-start'
+      "flex gap-3 p-4 rounded-lg message-enter",
+      isUser ? "bg-muted/30" : "bg-background"
     )}>
+      {/* Avatar */}
       <div className={cn(
-        "max-w-[80%] rounded-lg px-4 py-2",
-        message.role === 'user' 
-          ? 'bg-primary text-primary-foreground' 
-          : 'bg-muted'
+        "flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center",
+        isUser ? "bg-primary text-primary-foreground" : "bg-muted"
       )}>
+        {isUser ? <User className="w-4 h-4" /> : <Bot className="w-4 h-4" />}
+      </div>
+      
+      {/* Content */}
+      <div className="flex-1 space-y-2">
         {/* Conteúdo da mensagem */}
-        <div className="whitespace-pre-wrap break-words">
-          {message.content}
-        </div>
+        <MarkdownContent 
+          content={message.content}
+          className="prose prose-sm max-w-none dark:prose-invert"
+        />
 
         {/* Tool calls se houver */}
         {message.metadata?.toolCalls && (
-          <div className="mt-2 flex flex-wrap gap-1">
+          <div className="flex flex-wrap gap-2">
             {message.metadata.toolCalls.map((toolCall) => (
               <ToolCallIndicator 
                 key={toolCall.id} 
@@ -56,8 +65,16 @@ export const ChatMessage = React.memo<ChatMessageProps>(({ message }) => {
 
         {/* Indicador de streaming */}
         {message.isStreaming && (
-          <span className="inline-block w-2 h-4 ml-1 bg-current animate-pulse" />
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <span className="inline-block w-1 h-4 bg-current animate-pulse" />
+            <span className="text-sm">Digitando...</span>
+          </div>
         )}
+
+        {/* Timestamp */}
+        <div className="text-xs text-muted-foreground">
+          {new Date(message.created_at).toLocaleTimeString()}
+        </div>
       </div>
     </div>
   );
