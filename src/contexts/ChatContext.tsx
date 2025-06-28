@@ -5,7 +5,9 @@ interface ChatContextType {
   messages: any[];
   sendMessage: (content: string, model?: string) => void;
   getToolStatus: (toolCallId: string) => any;
+  clearChat: () => void;
   isConnected: boolean;
+  isLoadingHistory: boolean;
 }
 
 const ChatContext = createContext<ChatContextType | null>(null);

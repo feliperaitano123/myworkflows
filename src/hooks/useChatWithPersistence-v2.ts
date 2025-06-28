@@ -48,6 +48,7 @@ export const useChatWithPersistence = (workflowId: string) => {
   const processedMessageIds = useRef(new Set<string>());
   const wsRef = useRef<WebSocket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
 
   // Carregar histórico do banco
   useEffect(() => {
@@ -103,6 +104,17 @@ export const useChatWithPersistence = (workflowId: string) => {
       ws.onopen = () => {
         console.log('WebSocket conectado');
         setIsConnected(true);
+        
+        // Solicitar histórico após conectar
+        if (workflowId) {
+          console.log('Solicitando histórico para workflow:', workflowId);
+          setIsLoadingHistory(true);
+          ws.send(JSON.stringify({
+            type: 'get_history',
+            workflowId: workflowId,
+            limit: 50
+          }));
+        }
       };
 
       ws.onmessage = (event) => {
@@ -165,6 +177,11 @@ export const useChatWithPersistence = (workflowId: string) => {
         }
         break;
 
+      case 'complete':
+        // Chat cleared successfully
+        console.log('Chat cleared:', data.content);
+        break;
+
       case 'tool_call':
         // Tool sendo executada
         setState(prev => {
@@ -189,8 +206,29 @@ export const useChatWithPersistence = (workflowId: string) => {
           return { ...prev, toolStatuses: newToolStatuses };
         });
         break;
+
+      case 'history':
+        // Histórico recebido
+        console.log('Histórico recebido:', data.history?.length || 0, 'mensagens');
+        setIsLoadingHistory(false);
+        if (data.history && Array.isArray(data.history)) {
+          const validMessages = data.history.filter((msg: any) => msg.role !== 'tool');
+          setState(prev => ({
+            ...prev,
+            messages: validMessages
+          }));
+          // Marcar como processadas
+          validMessages.forEach((msg: any) => processedMessageIds.current.add(msg.id));
+        }
+        break;
+
+      case 'error':
+        // Erro do servidor
+        console.error('Erro do servidor:', data.error);
+        setIsLoadingHistory(false);
+        break;
     }
-  }, []);
+  }, [setIsLoadingHistory]);
 
   // Obter mensagens renderizáveis
   const getRenderableMessages = useCallback(() => {
@@ -231,10 +269,34 @@ export const useChatWithPersistence = (workflowId: string) => {
     return state.toolStatuses.get(toolCallId);
   }, [state.toolStatuses]);
 
+  // Limpar chat
+  const clearChat = useCallback(() => {
+    if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+      console.error('WebSocket não conectado');
+      return;
+    }
+
+    wsRef.current.send(JSON.stringify({ 
+      type: 'clear_chat',
+      workflowId
+    }));
+
+    // Limpar estado local imediatamente
+    setState({
+      messages: [],
+      streamingMessageId: null,
+      streamingContent: '',
+      toolStatuses: new Map()
+    });
+    processedMessageIds.current.clear();
+  }, [workflowId]);
+
   return {
     messages: getRenderableMessages(),
     sendMessage,
     getToolStatus,
-    isConnected
+    clearChat,
+    isConnected,
+    isLoadingHistory
   };
 };

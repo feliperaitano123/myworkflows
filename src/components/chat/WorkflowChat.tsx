@@ -11,7 +11,7 @@ interface WorkflowChatProps {
 }
 
 const ChatContent: React.FC<{ workflowId: string }> = ({ workflowId }) => {
-  const { messages, sendMessage, isConnected } = useChat();
+  const { messages, sendMessage, clearChat, isConnected, isLoadingHistory } = useChat();
   const { workflows } = useWorkflowsContext();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [selectedModel, setSelectedModel] = useState('anthropic/claude-3.5-sonnet');
@@ -31,8 +31,7 @@ const ChatContent: React.FC<{ workflowId: string }> = ({ workflowId }) => {
   };
 
   const handleClearChat = () => {
-    // TODO: Implementar clear chat
-    console.log('Clear chat');
+    clearChat();
   };
 
   return (
@@ -50,7 +49,14 @@ const ChatContent: React.FC<{ workflowId: string }> = ({ workflowId }) => {
 
       {/* Área de mensagens */}
       <div className="flex-1 overflow-y-auto p-4 space-y-2 chat-messages">
-        {messages.length === 0 ? (
+        {isLoadingHistory ? (
+          <div className="flex items-center justify-center h-full">
+            <div className="text-muted-foreground flex items-center gap-2">
+              <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+              Carregando histórico...
+            </div>
+          </div>
+        ) : messages.length === 0 ? (
           <WelcomeScreen />
         ) : (
           messages.map(message => (
