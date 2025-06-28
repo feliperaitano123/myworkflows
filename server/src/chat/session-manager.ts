@@ -93,8 +93,7 @@ export class ChatSessionManager {
     role: 'user' | 'assistant' | 'tool', 
     content: string, 
     userToken: string,
-    metadata?: any,
-    messageId?: string
+    metadata?: any
   ): Promise<string> {
     try {
       const supabase = this.getServiceClient();
@@ -102,7 +101,6 @@ export class ChatSessionManager {
       const { data: message, error } = await supabase
         .from('chat_messages')
         .insert({
-          id: messageId || undefined, // Use provided messageId or let DB generate
           session_id: sessionId,
           role,
           content,

@@ -163,7 +163,7 @@ export const useChatWithPersistence = (workflowId: string) => {
         setState(prev => ({
           ...prev,
           streamingContent: prev.streamingContent + data.content,
-          streamingMessageId: data.messageId
+          streamingMessageId: 'streaming'
         }));
         break;
 
@@ -173,18 +173,19 @@ export const useChatWithPersistence = (workflowId: string) => {
           processedMessageIds.current.add(data.message.id);
           
           setState(prev => {
-            const isStreamingMessage = prev.streamingMessageId === data.message.id;
-            
             // Não adicionar mensagens tool
             if (data.message.role === 'tool') {
               return prev;
             }
             
+            // Se é uma mensagem do assistant e estamos fazendo streaming, limpar o streaming
+            const shouldClearStreaming = data.message.role === 'assistant' && prev.streamingContent;
+            
             return {
               ...prev,
               messages: [...prev.messages, data.message],
-              streamingContent: isStreamingMessage ? '' : prev.streamingContent,
-              streamingMessageId: isStreamingMessage ? null : prev.streamingMessageId
+              streamingContent: shouldClearStreaming ? '' : prev.streamingContent,
+              streamingMessageId: shouldClearStreaming ? null : prev.streamingMessageId
             };
           });
         }
@@ -271,9 +272,9 @@ export const useChatWithPersistence = (workflowId: string) => {
     const renderableMessages = [...state.messages];
     
     // Adicionar streaming se existir
-    if (state.streamingMessageId && state.streamingContent) {
+    if (state.streamingContent) {
       renderableMessages.push({
-        id: state.streamingMessageId,
+        id: 'streaming-message',
         role: 'assistant',
         content: state.streamingContent,
         isStreaming: true,
