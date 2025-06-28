@@ -78,6 +78,7 @@ export interface WSChatMessage {
   error?: string;
   history?: ChatMessage[];
   messageId?: string;
+  message?: ChatMessage; // Full message object for message_saved
   role?: 'assistant' | 'tool';
   metadata?: any;
   timestamp?: string;

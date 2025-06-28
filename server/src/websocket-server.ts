@@ -227,6 +227,9 @@ export class AIWebSocketServer {
       // 2. Salvar mensagem do usuário no banco
       let userMessageId: string | undefined;
       if (chatSessionId) {
+        // Generate messageId for user message
+        const generatedMessageId = `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        
         // Calcular tokens de input com estimativa melhorada
         const inputTokens = estimateTokenCount(message.content);
         console.log(`🔢 Tokens INPUT calculados: ${inputTokens} (${message.content.length} caracteres, ${message.content.trim().split(/\s+/).length} palavras)`);
@@ -245,13 +248,26 @@ export class AIWebSocketServer {
               total: inputTokens
             },
             timestamp: new Date().toISOString()
-          }
+          },
+          generatedMessageId
         );
 
         // Confirmar que mensagem foi salva
         const confirmMessage: WSChatMessage = {
           type: 'message_saved',
-          messageId: userMessageId,
+          message: {
+            id: userMessageId,
+            role: 'user',
+            content: message.content,
+            metadata: {
+              model: message.model || 'anthropic/claude-3-haiku',
+              tokens: {
+                input: inputTokens,
+                output: 0
+              }
+            },
+            created_at: new Date().toISOString()
+          },
           sessionId: session.sessionId
         };
         ws.send(JSON.stringify(confirmMessage));
@@ -384,12 +400,16 @@ Você tem acesso a ferramentas que podem:
     workflowId?: string
   ): Promise<void> {
     let startTime = Date.now();
+    
+    // Generate messageId for the streaming response
+    const messageId = `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
     // Callback para capturar tokens e enviá-los para o cliente
     const tokenCallback = (token: string) => {
       const tokenMessage: WSChatMessage = {
         type: 'token',
         content: token,
+        messageId: messageId,
         sessionId: session.sessionId
       };
       ws.send(JSON.stringify(tokenMessage));
@@ -433,10 +453,32 @@ Você tem acesso a ferramentas que podem:
               total: outputTokens
             },
             timestamp: new Date().toISOString()
-          }
+          },
+          messageId // Use the same messageId as streaming
         );
 
         console.log(`💾 Resposta do assistente salva: ${assistantMessageId}`);
+        
+        // Send message_saved for assistant message
+        const assistantSavedMessage: WSChatMessage = {
+          type: 'message_saved',
+          message: {
+            id: assistantMessageId,
+            role: 'assistant',
+            content: fullResponse,
+            metadata: {
+              model: model,
+              tokens: {
+                input: 0,
+                output: outputTokens
+              },
+              response_time_ms: responseTime
+            },
+            created_at: new Date().toISOString()
+          },
+          sessionId: session.sessionId
+        };
+        ws.send(JSON.stringify(assistantSavedMessage));
       }
 
     } catch (error) {
