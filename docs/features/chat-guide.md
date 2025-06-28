@@ -400,6 +400,7 @@ export interface ChatMessage {
 2. **SEMPRE** usar o banco como fonte única de verdade
 3. **Tool messages** existem no banco mas NÃO são renderizadas
 4. **Streaming** é apenas visual temporário
+
 5. **WebSocket** é o único canal de comunicação
 
 ---
