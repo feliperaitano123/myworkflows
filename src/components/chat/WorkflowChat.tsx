@@ -10,9 +10,10 @@ import { useWorkflowsContext } from '@/contexts/WorkflowContext';
 
 interface WorkflowChatProps {
   workflowId: string;
+  onClearChatRef?: React.MutableRefObject<(() => void) | undefined>;
 }
 
-const ChatContent: React.FC<{ workflowId: string }> = ({ workflowId }) => {
+const ChatContent: React.FC<{ workflowId: string; onClearChatRef?: React.MutableRefObject<(() => void) | undefined> }> = ({ workflowId, onClearChatRef }) => {
   const { messages, sendMessage, clearChat, isConnected, isLoadingHistory } = useChat();
   const { workflows } = useWorkflowsContext();
   
@@ -63,6 +64,13 @@ const ChatContent: React.FC<{ workflowId: string }> = ({ workflowId }) => {
   const handleConfirmClear = () => {
     clearChat();
   };
+
+  // Expor função de clear chat para o componente pai
+  React.useEffect(() => {
+    if (onClearChatRef) {
+      onClearChatRef.current = handleClearChat;
+    }
+  }, [onClearChatRef]);
 
   return (
     <div className="h-full flex flex-col">
@@ -123,11 +131,12 @@ const ChatContent: React.FC<{ workflowId: string }> = ({ workflowId }) => {
 };
 
 export const WorkflowChat: React.FC<WorkflowChatProps> = ({ 
-  workflowId 
+  workflowId,
+  onClearChatRef
 }) => {
   return (
     <ChatProvider workflowId={workflowId}>
-      <ChatContent workflowId={workflowId} />
+      <ChatContent workflowId={workflowId} onClearChatRef={onClearChatRef} />
     </ChatProvider>
   );
 };

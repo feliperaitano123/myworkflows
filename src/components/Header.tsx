@@ -2,8 +2,15 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
-import { LucideIcon, LogOut } from 'lucide-react';
+import { LucideIcon, MoreVertical, Trash2, Trash } from 'lucide-react';
 import { EditableTitle } from '@/components/EditableTitle';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from '@/components/ui/dropdown-menu';
 
 interface HeaderProps {
   title: string;
@@ -18,14 +25,14 @@ interface HeaderProps {
     onSave: (newTitle: string) => void;
     isLoading?: boolean;
   };
+  // Props para workflow settings
+  workflowSettings?: {
+    onClearChat: () => void;
+    onDeleteWorkflow: () => void;
+  };
 }
 
-export const Header: React.FC<HeaderProps> = ({ title, subtitle, actionButton, editable }) => {
-  const { logout, user } = useAuth();
-
-  const handleLogout = () => {
-    logout();
-  };
+export const Header: React.FC<HeaderProps> = ({ title, subtitle, actionButton, editable, workflowSettings }) => {
 
   return (
     <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-background">
@@ -45,23 +52,6 @@ export const Header: React.FC<HeaderProps> = ({ title, subtitle, actionButton, e
       </div>
       
       <div className="flex items-center gap-3">
-        {user && (
-          <div className="flex items-center gap-3">
-            <span className="text-sm text-muted-foreground">
-              Olá, {user.name}
-            </span>
-            <Button
-              onClick={handleLogout}
-              variant="ghost"
-              size="sm"
-              className="flex items-center gap-2"
-            >
-              <LogOut className="h-4 w-4" />
-              Sair
-            </Button>
-          </div>
-        )}
-        
         {actionButton && (
           <Button
             onClick={actionButton.onClick}
@@ -71,6 +61,37 @@ export const Header: React.FC<HeaderProps> = ({ title, subtitle, actionButton, e
             <actionButton.icon className="h-4 w-4" />
             {actionButton.label}
           </Button>
+        )}
+        
+        {workflowSettings && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button 
+                variant="ghost" 
+                size="sm"
+                className="h-8 w-8 p-0"
+              >
+                <MoreVertical className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem 
+                onClick={workflowSettings.onClearChat}
+                className="flex items-center gap-2"
+              >
+                <Trash2 className="h-4 w-4" />
+                Limpar Chat
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem 
+                onClick={workflowSettings.onDeleteWorkflow}
+                className="flex items-center gap-2 text-destructive focus:text-destructive"
+              >
+                <Trash className="h-4 w-4" />
+                Deletar Workflow
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         )}
       </div>
     </div>
