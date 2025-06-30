@@ -66,3 +66,19 @@
 .animate-pulse {
   animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
+
+/* Agrupamento visual de mensagens */
+/* Reduzir espaçamento entre mensagens consecutivas do assistant */
+.message-assistant + .message-assistant {
+  margin-top: -12px;
+}
+
+/* Manter espaçamento normal após mensagens do usuário */
+.message-user + .message-assistant {
+  margin-top: 0;
+}
+
+/* Espaçamento normal entre mensagem assistant e user */
+.message-assistant + .message-user {
+  margin-top: 8px;
+}

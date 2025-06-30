@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { User, Clock, FileText, Play } from 'lucide-react';
 import { CopyButton } from '@/components/ui/copy-button';
@@ -36,7 +35,7 @@ export const UserMessage: React.FC<UserMessageProps> = ({
             <CopyButton content={content} />
           </div>
           
-          <div className="bg-primary text-primary-foreground rounded-lg p-4 relative">
+          <div className="bg-red-500 rounded-lg p-4 relative">
             {/* Attachments */}
             {attachments && attachments.length > 0 && (
               <div className="mb-3 space-y-1">

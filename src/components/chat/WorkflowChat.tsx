@@ -79,7 +79,7 @@ const ChatContent: React.FC<{ workflowId: string }> = ({ workflowId }) => {
 
       {/* Área de mensagens - Flexible height */}
       <div className="flex-1 overflow-y-auto min-h-0">
-        <div className="p-4 space-y-2 chat-messages">
+        <div className="p-4 space-y-4 chat-messages">
           {isLoadingHistory ? (
             <div className="flex items-center justify-center h-full">
               <div className="text-muted-foreground flex items-center gap-2">
