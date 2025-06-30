@@ -335,13 +335,15 @@ Private: / (dashboard), /connections, /library, /settings, /workflow/:id
 - ✅ **Layout Architecture**: Hierarquia de altura corrigida, sem elementos fora da tela
 - ✅ **Tool Status System**: Corrigido spinning infinito, ícones de status inteligentes
 - ✅ **Markdown Rendering**: Syntax highlighting automático para JSON e código
-- ✅ **Interactive UI**: Sistema de hover para botões de feedback
+- ✅ **Interactive UI**: Sistema de hover para botões de feedback (copy/like/dislike)
 - ✅ **Visual Grouping**: Agrupamento de mensagens assistant+tools
 - ✅ **Background Consistency**: Diferenciação visual entre user/assistant
 - ✅ **Timezone Support**: Formatação correta para Brasil (UTC-3)
 - ✅ **Context System**: @mentions integrados com envio de contexto para IA
 - ✅ **Smart Parsing**: Parser inteligente que separa mensagem de contexto na UI
 - ✅ **Context Badges**: Visualização elegante de contextos com badges read-only
+- ✅ **Backwards Compatibility**: Parser mantém compatibilidade com mensagens antigas
+- ✅ **Clean UX**: Interface limpa para usuário, contexto completo para IA
 
 #### Known Issues (Recently Fixed)
 - ✅ **Fixed**: WebSocket history loading timing issue
