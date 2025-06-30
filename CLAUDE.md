@@ -163,7 +163,17 @@ N8nAPIClient.getWorkflowExecutions() → n8n API (/api/v1/executions)
 
 ## Recent Updates
 
-### MyExecutions System Implementation (Latest)
+### Chat Validation Modal System (Latest)
+- ✅ **Smart Validation Modal**: Modal elegante com design system para validação de chat
+- ✅ **Multi-step Validation**: 3 etapas detalhadas (Workflow exists, WebSocket, Connection health)
+- ✅ **ID Mapping Fix**: Correção crítica no mapeamento System ID → n8n ID
+- ✅ **Auto-validation**: Validação automática ao abrir workflow chat
+- ✅ **Error Recovery**: Botão "Tentar Novamente" com retry automático
+- ✅ **Bug Reporting**: Interface visual para reportar problemas (frontend-ready)
+- ✅ **Smart UX**: Modal aparece em validação/erro, fecha automaticamente no sucesso
+- ✅ **UI Cleanup**: Removido banner de status antigo em favor do modal
+
+### MyExecutions System Implementation
 - ✅ **Backend APIs**: Servidor REST (porta 3002) + endpoint `/api/workflows/:id/executions`
 - ✅ **N8n Integration**: `getWorkflowExecutions()` com payload otimizado (id, name, status)
 - ✅ **Frontend Integration**: `useExecutions` hook + React Query cache
@@ -277,18 +287,21 @@ N8nAPIClient.getWorkflowExecutions() → n8n API (/api/v1/executions)
 ├── /components
 │   ├── /ui/          # shadcn/ui base components
 │   ├── /chat/        # Chat-specific components
-│   │   ├── WorkflowChat.tsx      # Main chat container
-│   │   ├── ChatMessage-v2.tsx    # Message display with tool support
-│   │   ├── ChatInput-v2.tsx      # Input with model selector
-│   │   ├── ChatWelcome.tsx       # Welcome screen
-│   │   ├── TypingIndicator.tsx   # AI thinking indicator
-│   │   ├── ContextPopover.tsx    # @mentions system
-│   │   └── ContextTag.tsx        # Context item display
+│   │   ├── WorkflowChat.tsx         # Main chat container
+│   │   ├── ChatMessage-v2.tsx       # Message display with tool support
+│   │   ├── ChatInput-v2.tsx         # Input with model selector
+│   │   ├── ChatWelcome.tsx          # Welcome screen
+│   │   ├── TypingIndicator.tsx      # AI thinking indicator
+│   │   ├── ChatValidationModal.tsx  # Validation status modal
+│   │   ├── ClearChatModal.tsx       # Clear chat confirmation
+│   │   ├── ContextPopover.tsx       # @mentions system
+│   │   └── ContextTag.tsx           # Context item display
 │   └── /[feature]/   # Other feature components
 ├── /pages/           # Route components
 ├── /contexts/        # Global state providers
 ├── /hooks/           # Custom React hooks
 │   ├── useChatWithPersistence-v2.ts  # WebSocket chat hook
+│   ├── useChatValidation.ts          # Chat validation with modal control
 │   ├── useExecutions.ts              # Executions data hook
 │   └── useWorkflowSync.ts            # Workflow sync hook
 ├── /services/        # API service layers
@@ -447,6 +460,17 @@ Private: / (dashboard), /connections, /library, /settings, /workflow/:id
    - **Smooth animations**: Fade-in e scroll automático
    - **Welcome screen**: Sugestões interativas (Workflow/Code/Bug)
    - **Connection status**: Indicador visual verde/vermelho
+   - **Auto-validation**: Validação automática de workflow ao abrir chat
+   - **Validation Modal**: Modal elegante com status detalhado das verificações
+   
+   **Sistema de Validação Inteligente**
+   - **Auto-verification**: Validação automática ao acessar workflow chat
+   - **ID Mapping**: Conversão correta entre System ID e n8n ID
+   - **Multi-step Validation**: 3 etapas (Workflow exists, WebSocket, Connection health)
+   - **Status Modal**: Interface elegante com verificações detalhadas
+   - **Error Recovery**: Botão "Tentar Novamente" com retry automático
+   - **Bug Reporting**: Sistema visual para reportar problemas (frontend-ready)
+   - **Smart UX**: Modal aparece durante validação e em erros, fecha automaticamente no sucesso
    
    **Modelos Disponíveis**
    - Claude 3.5 Sonnet & Haiku
@@ -499,6 +523,8 @@ Private: / (dashboard), /connections, /library, /settings, /workflow/:id
 - ✅ **Fixed**: Chat history not displaying after page refresh
 - ✅ **Fixed**: ByteString error with unicode in API keys
 - ✅ **Fixed**: Tool calls display in chat history
+- ✅ **Fixed**: System ID vs n8n ID mapping in chat validation
+- ✅ **Fixed**: Manual workflow validation requirement
 - WebSocket reconnection can be flaky on poor connections
 - Large workflows (>100 nodes) may cause performance issues
 - No offline support or message queueing

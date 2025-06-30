@@ -3,10 +3,11 @@ import { ChatProvider, useChat } from '@/contexts/ChatContext';
 import { ChatMessage } from './ChatMessage-v2';
 import { ChatInput } from './ChatInput';
 import { WelcomeScreen } from './WelcomeScreen';
-import { ChatHeader } from './ChatHeader';
 import { TypingIndicator } from './TypingIndicator';
 import { ClearChatModal } from './ClearChatModal';
+import { ChatValidationModal } from './ChatValidationModal';
 import { useWorkflowsContext } from '@/contexts/WorkflowContext';
+import { useChatValidation } from '@/hooks/useChatValidation';
 
 interface WorkflowChatProps {
   workflowId: string;
@@ -15,7 +16,7 @@ interface WorkflowChatProps {
 
 const ChatContent: React.FC<{ workflowId: string; onClearChatRef?: React.MutableRefObject<(() => void) | undefined> }> = ({ workflowId, onClearChatRef }) => {
   const { messages, sendMessage, clearChat, isConnected, isLoadingHistory } = useChat();
-  const { workflows } = useWorkflowsContext();
+  const { workflows, syncWorkflowNames } = useWorkflowsContext();
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [selectedModel, setSelectedModel] = useState('anthropic/claude-3.5-sonnet');
@@ -23,6 +24,9 @@ const ChatContent: React.FC<{ workflowId: string; onClearChatRef?: React.Mutable
   const [showClearModal, setShowClearModal] = useState(false);
 
   const currentWorkflow = workflows.find(w => w.id === workflowId);
+  
+  // Hook de validação do chat
+  const chatValidation = useChatValidation(workflowId);
   
   // Check if AI is thinking (user sent message but no AI response yet)
   useEffect(() => {
@@ -65,6 +69,23 @@ const ChatContent: React.FC<{ workflowId: string; onClearChatRef?: React.Mutable
     clearChat();
   };
 
+  // Handler para tentar novamente a validação
+  const handleRetryValidation = async () => {
+    try {
+      console.log('🔄 Retrying validation...');
+      await syncWorkflowNames();
+      console.log('✅ Validation retry completed');
+    } catch (error) {
+      console.error('❌ Error retrying validation:', error);
+    }
+  };
+
+  // Handler para fechar o modal
+  const handleCloseValidationModal = () => {
+    // O modal será fechado automaticamente quando showModal for false
+    // Não precisamos fazer nada aqui, pois o estado é controlado pelo hook
+  };
+
   // Expor função de clear chat para o componente pai
   React.useEffect(() => {
     if (onClearChatRef) {
@@ -74,18 +95,6 @@ const ChatContent: React.FC<{ workflowId: string; onClearChatRef?: React.Mutable
 
   return (
     <div className="h-full flex flex-col">
-      {/* Header - Fixed height */}
-      <div className="flex-shrink-0">
-        <ChatHeader
-          workflowName={currentWorkflow?.name || 'Workflow'}
-          workflowId={currentWorkflow?.workflowId}
-          onClearChat={handleClearChat}
-          isConnected={isConnected}
-          isConnecting={false}
-          messageCount={messages.length}
-        />
-      </div>
-
       {/* Área de mensagens - Flexible height */}
       <div className="flex-1 overflow-y-auto min-h-0">
         <div className="p-4 space-y-4 chat-messages">
@@ -114,12 +123,23 @@ const ChatContent: React.FC<{ workflowId: string; onClearChatRef?: React.Mutable
       <div className="flex-shrink-0">
         <ChatInput
           onSend={handleSendMessage}
-          disabled={!isConnected}
+          disabled={!chatValidation.isValid}
           selectedModel={selectedModel}
           onModelChange={setSelectedModel}
           workflowId={workflowId}
         />
       </div>
+
+      {/* Chat Validation Modal */}
+      <ChatValidationModal
+        isOpen={chatValidation.showModal}
+        onClose={handleCloseValidationModal}
+        onRetry={handleRetryValidation}
+        isValidating={chatValidation.isValidating}
+        workflowName={currentWorkflow?.name || 'Workflow'}
+        validationSteps={chatValidation.validationSteps}
+        overallStatus={chatValidation.overallStatus}
+      />
 
       {/* Clear Chat Modal */}
       <ClearChatModal
