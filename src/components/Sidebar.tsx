@@ -50,7 +50,7 @@ const navigation = [
 
 export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggleCollapse }) => {
   const location = useLocation();
-  const { workflows, isLoading, syncWorkflowNames, isSyncing } = useWorkflowsContext();
+  const { workflows, isLoading, syncWorkflowNames, isSyncing, getWorkflowStatus } = useWorkflowsContext();
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
   const handleSyncWorkflows = async () => {
@@ -183,6 +183,20 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggleCollapse 
             ) : workflows.length > 0 ? (
               workflows.map((workflow) => {
                 const isActive = location.pathname === `/workflow/${workflow.id}`;
+                const workflowStatus = getWorkflowStatus(workflow.id);
+                
+                // Determinar cor baseada no status do cache
+                let statusColor = 'text-gray-400'; // Padrão: cinza (não verificado)
+                let statusTitle = 'Status não verificado - clique no botão sync';
+                
+                if (workflowStatus === 'exists') {
+                  statusColor = 'text-green-500'; // Verde: existe no n8n
+                  statusTitle = 'Workflow existe no n8n';
+                } else if (workflowStatus === 'missing') {
+                  statusColor = 'text-red-500'; // Vermelho: não existe no n8n
+                  statusTitle = 'Workflow não existe no n8n';
+                }
+                
                 return (
                   <Link key={workflow.id} to={`/workflow/${workflow.id}`}>
                     <Button
@@ -197,8 +211,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggleCollapse 
                       <Circle 
                         className={cn(
                           'h-2 w-2 flex-shrink-0 fill-current',
-                          workflow.isActive ? 'text-green-500' : 'text-red-500'
+                          statusColor
                         )}
+                        title={statusTitle}
                       />
                       {!isCollapsed && (
                         <span className="truncate text-sm">{workflow.name}</span>

@@ -131,18 +131,45 @@ export class APIServer {
       }
     });
 
-    // POST /api/workflows/sync-names - Atualiza nomes dos workflows do n8n
+    // POST /api/workflows/validate - Valida workflows e retorna status para cache
+    this.app.post('/api/workflows/validate', async (req, res) => {
+      try {
+        const userId = (req as any).userId;
+
+        console.log(`🔧 API: Validando workflows para usuário ${userId}`);
+
+        const statusCache = await this.n8nClient.validateWorkflows(userId);
+        
+        res.json({
+          success: true,
+          message: 'Workflows validados com sucesso',
+          data: statusCache,
+          timestamp: new Date().toISOString()
+        });
+
+      } catch (error) {
+        console.error('❌ Erro ao validar workflows:', error);
+        res.status(500).json({
+          success: false,
+          error: error instanceof Error ? error.message : 'Erro desconhecido',
+          timestamp: new Date().toISOString()
+        });
+      }
+    });
+
+    // POST /api/workflows/sync-names - DEPRECATED - use /validate
     this.app.post('/api/workflows/sync-names', async (req, res) => {
       try {
         const userId = (req as any).userId;
 
-        console.log(`🔧 API: Sincronizando nomes dos workflows para usuário ${userId}`);
+        console.log(`🔧 API: Sincronizando nomes dos workflows para usuário ${userId} (deprecated)`);
 
-        await this.n8nClient.updateWorkflowNames(userId);
+        const statusCache = await this.n8nClient.validateWorkflows(userId);
         
         res.json({
           success: true,
           message: 'Nomes dos workflows sincronizados com sucesso',
+          data: statusCache,
           timestamp: new Date().toISOString()
         });
 

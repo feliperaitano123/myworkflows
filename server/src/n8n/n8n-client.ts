@@ -328,27 +328,28 @@ export class N8nAPIClient {
   }
 
   /**
-   * Atualiza os nomes dos workflows e verifica existência individual
-   * Lógica: Verde se existe no n8n, Vermelho se não existe mais
+   * Verifica existência dos workflows no n8n e retorna status para cache do frontend
+   * Não salva mais status no banco - só atualiza nomes se necessário
    */
-  async updateWorkflowNames(userId: string): Promise<void> {
+  async validateWorkflows(userId: string): Promise<Record<string, {exists: boolean, name?: string}>> {
     try {
-      console.log(`🔄 Validando existência e atualizando workflows para usuário: ${userId}`);
+      console.log(`🔍 Validando workflows para usuário: ${userId}`);
 
       // 1. Buscar workflows do banco do usuário
       const { data: localWorkflows, error } = await this.supabase
         .from('workflows')
-        .select('id, workflow_id, name, active')
+        .select('id, workflow_id, name')
         .eq('user_id', userId);
 
       if (error) {
         throw new Error(`Erro ao buscar workflows locais: ${error.message}`);
       }
 
-      console.log(`💾 Encontrados ${localWorkflows?.length || 0} workflows no banco para validar`);
+      console.log(`💾 Encontrados ${localWorkflows?.length || 0} workflows para validar`);
 
-      // 2. Verificar existência de cada workflow individualmente
-      let updatedCount = 0;
+      // 2. Verificar existência de cada workflow e montar cache
+      const statusCache: Record<string, {exists: boolean, name?: string}> = {};
+      let nameUpdatesCount = 0;
       let existingCount = 0;
       let missingCount = 0;
 
@@ -357,73 +358,55 @@ export class N8nAPIClient {
         
         const checkResult = await this.checkWorkflowExists(localWorkflow.workflow_id, userId);
         
-        let needsUpdate = false;
-        let updateData: any = {};
+        // Salvar no cache para retornar ao frontend
+        statusCache[localWorkflow.id] = {
+          exists: checkResult.exists,
+          name: checkResult.name
+        };
 
         if (checkResult.exists) {
-          // Workflow existe no n8n
           existingCount++;
+          console.log(`✅ Workflow ${localWorkflow.workflow_id} existe`);
           
-          // Verificar se nome mudou
+          // Atualizar apenas o nome no banco se mudou
           if (checkResult.name && checkResult.name !== localWorkflow.name) {
-            updateData.name = checkResult.name;
-            needsUpdate = true;
-            console.log(`📝 Nome: "${localWorkflow.name}" → "${checkResult.name}"`);
-          }
-          
-          // SEMPRE marcar como ativo quando existe no n8n
-          if (!localWorkflow.active) {
-            updateData.active = true;
-            needsUpdate = true;
-            console.log(`🟢 Status: inativo → ativo (existe no n8n)`);
-          } else {
-            // Garantir que está ativo mesmo se já estava ativo
-            updateData.active = true;
-            needsUpdate = true;
-            console.log(`🟢 Confirmando status ativo (existe no n8n)`);
+            const { error: updateError } = await this.supabase
+              .from('workflows')
+              .update({ name: checkResult.name })
+              .eq('id', localWorkflow.id);
+
+            if (updateError) {
+              console.error(`❌ Erro ao atualizar nome do workflow ${localWorkflow.id}:`, updateError);
+            } else {
+              nameUpdatesCount++;
+              console.log(`📝 Nome atualizado: "${localWorkflow.name}" → "${checkResult.name}"`);
+            }
           }
         } else {
-          // Workflow NÃO existe no n8n
           missingCount++;
-          
-          // SEMPRE marcar como inativo quando não existe no n8n
-          if (localWorkflow.active) {
-            updateData.active = false;
-            needsUpdate = true;
-            console.log(`🔴 Status: ativo → inativo (não existe no n8n)`);
-          } else {
-            // Garantir que está inativo mesmo se já estava inativo
-            updateData.active = false;
-            needsUpdate = true;
-            console.log(`🔴 Confirmando status inativo (não existe no n8n)`);
-          }
-        }
-
-        // Atualizar no banco se necessário
-        if (needsUpdate) {
-          const { error: updateError } = await this.supabase
-            .from('workflows')
-            .update(updateData)
-            .eq('id', localWorkflow.id);
-
-          if (updateError) {
-            console.error(`❌ Erro ao atualizar workflow ${localWorkflow.id}:`, updateError);
-          } else {
-            updatedCount++;
-            console.log(`✅ Workflow ${localWorkflow.workflow_id} atualizado`);
-          }
+          console.log(`❌ Workflow ${localWorkflow.workflow_id} não existe no n8n`);
         }
       }
 
       console.log(`📊 Resumo da validação:`);
       console.log(`   🟢 Existem no n8n: ${existingCount}`);
       console.log(`   🔴 Não existem no n8n: ${missingCount}`);
-      console.log(`   ✅ Atualizados no banco: ${updatedCount}`);
+      console.log(`   📝 Nomes atualizados: ${nameUpdatesCount}`);
+
+      return statusCache;
 
     } catch (error) {
       console.error('❌ Erro ao validar workflows:', error);
       throw error;
     }
+  }
+
+  /**
+   * @deprecated Use validateWorkflows() para nova lógica sem campo active
+   */
+  async updateWorkflowNames(userId: string): Promise<void> {
+    console.log('⚠️ updateWorkflowNames está deprecated, use validateWorkflows()');
+    await this.validateWorkflows(userId);
   }
 
   /**

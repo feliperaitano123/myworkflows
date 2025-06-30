@@ -22,6 +22,7 @@ interface WorkflowContextType {
   refreshWorkflows: () => void;
   syncWorkflowNames: () => Promise<void>;
   isSyncing: boolean;
+  getWorkflowStatus: (workflowId: string) => 'unknown' | 'exists' | 'missing';
 }
 
 const WorkflowContext = createContext<WorkflowContextType | undefined>(undefined);
@@ -37,16 +38,17 @@ export const useWorkflowsContext = () => {
 export const WorkflowProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [selectedWorkflow, setSelectedWorkflow] = useState<Workflow | null>(null);
   const { data: workflowsData, isLoading, refetch } = useWorkflows();
-  const { syncWorkflowNames: syncNames, isSyncing } = useWorkflowSync();
+  const { syncWorkflowNames: syncNames, isSyncing, getWorkflowStatus } = useWorkflowSync();
 
   // Transform database workflows to match the interface
+  // Removido workflow.active - agora usa cache do status
   const workflows: Workflow[] = workflowsData?.map(workflow => ({
     id: workflow.id,
     workflowId: workflow.workflow_id, // n8n workflow ID
     name: workflow.name || workflow.workflow_id, // Use real name if available, fallback to workflow_id
     connectionId: workflow.connection_id, // Fixed: use connection_id instead of n8n_connection_id
     connectionName: workflow.connections?.name || 'Unknown Connection',
-    isActive: workflow.active || false, // Use real active status from n8n
+    isActive: getWorkflowStatus(workflow.id) === 'exists', // Usa cache do status
     lastUsed: new Date(workflow.updated_at).toLocaleDateString(),
     description: workflow.description,
   })) || [];
@@ -57,7 +59,7 @@ export const WorkflowProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   const syncWorkflowNames = async () => {
     try {
-      console.log('🔄 Iniciando sincronização...');
+      console.log('🔄 Iniciando validação de workflows...');
       await syncNames();
       
       // Aguardar um pouco para garantir que o banco foi atualizado
@@ -67,9 +69,9 @@ export const WorkflowProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       // Refresh workflows after sync to get updated data
       refreshWorkflows();
       
-      console.log('✅ Sincronização completa!');
+      console.log('✅ Validação completa!');
     } catch (error) {
-      console.error('❌ Erro na sincronização:', error);
+      console.error('❌ Erro na validação:', error);
     }
   };
 
@@ -80,7 +82,8 @@ export const WorkflowProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setSelectedWorkflow,
     refreshWorkflows,
     syncWorkflowNames,
-    isSyncing
+    isSyncing,
+    getWorkflowStatus
   };
 
   return (
