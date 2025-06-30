@@ -47,6 +47,12 @@ export const useChatWithPersistence = (workflowId: string) => {
 
   const processedMessageIds = useRef(new Set<string>());
   const wsRef = useRef<WebSocket | null>(null);
+  const reconnectTimeoutRef = useRef<NodeJS.Timeout>();
+  const historyTimeoutRef = useRef<NodeJS.Timeout>();
+  const isConnectingRef = useRef(false);
+  const previousWorkflowIdRef = useRef<string | null>(null);
+  const pendingHistoryRequestRef = useRef<string | null>(null);
+  const historyRetryCountRef = useRef(0);
   const [isConnected, setIsConnected] = useState(false);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
 
@@ -95,16 +101,43 @@ export const useChatWithPersistence = (workflowId: string) => {
 
   // Conectar WebSocket
   useEffect(() => {
-    if (!user) return;
+    if (!user || !workflowId) return;
 
-    // Limpar estado quando trocar de workflow
-    setState({
-      messages: [],
-      streamingMessageId: null,
-      streamingContent: '',
-      toolStatuses: new Map()
-    });
-    processedMessageIds.current.clear();
+    // Verificar se realmente mudou de workflow
+    const workflowChanged = previousWorkflowIdRef.current !== workflowId;
+    previousWorkflowIdRef.current = workflowId;
+
+    // Se não mudou de workflow, não fazer nada
+    if (!workflowChanged && wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      console.log('Mesmo workflow e WebSocket conectado, mantendo conexão');
+      return;
+    }
+
+    // Evitar múltiplas conexões simultâneas
+    if (isConnectingRef.current) {
+      console.log('Já existe uma conexão em andamento, ignorando...');
+      return;
+    }
+
+    isConnectingRef.current = true;
+
+    // Cancelar qualquer conexão anterior
+    if (wsRef.current) {
+      wsRef.current.close();
+      wsRef.current = null;
+    }
+
+    // Limpar estado apenas quando trocar de workflow
+    if (workflowChanged) {
+      setState({
+        messages: [],
+        streamingMessageId: null,
+        streamingContent: '',
+        toolStatuses: new Map()
+      });
+      processedMessageIds.current.clear();
+      setIsLoadingHistory(true);
+    }
 
     const connectWebSocket = async () => {
       const { data: { session } } = await supabase.auth.getSession();
@@ -117,50 +150,93 @@ export const useChatWithPersistence = (workflowId: string) => {
       ws.onopen = () => {
         console.log('WebSocket conectado');
         setIsConnected(true);
+        isConnectingRef.current = false;
         
-        // Aguardar um momento para garantir que a conexão está estável
-        setTimeout(() => {
-          if (workflowId && ws.readyState === WebSocket.OPEN) {
-            console.log('Solicitando histórico para workflow:', workflowId);
-            setIsLoadingHistory(true);
-            ws.send(JSON.stringify({
-              type: 'get_history',
-              workflowId: workflowId,
-              limit: 50
-            }));
-          }
-        }, 100);
+        // Armazenar workflowId para solicitar histórico após "connected"
+        pendingHistoryRequestRef.current = workflowId;
+        console.log('Aguardando confirmação "connected" para solicitar histórico...');
       };
 
       ws.onmessage = (event) => {
+        console.log('WebSocket mensagem recebida:', event.data);
         handleWebSocketMessage(event);
       };
 
       ws.onerror = (error) => {
         console.error('WebSocket erro:', error);
+        setIsLoadingHistory(false);
+        isConnectingRef.current = false;
       };
 
       ws.onclose = (event) => {
         console.log('WebSocket desconectado:', event.code, event.reason);
         setIsConnected(false);
         setIsLoadingHistory(false);
+        isConnectingRef.current = false;
       };
 
       wsRef.current = ws;
     };
 
-    connectWebSocket();
+    // Adicionar delay maior para evitar múltiplas conexões rápidas
+    const connectionDelay = setTimeout(() => {
+      connectWebSocket();
+    }, 300);
 
     return () => {
-      wsRef.current?.close();
+      isConnectingRef.current = false;
+      pendingHistoryRequestRef.current = null;
+      clearTimeout(connectionDelay);
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+      }
+      if (historyTimeoutRef.current) {
+        clearTimeout(historyTimeoutRef.current);
+      }
+      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+        wsRef.current.close(1000, 'Component unmounting');
+      }
     };
   }, [user, workflowId]);
 
+  // Função para solicitar histórico
+  const requestHistory = useCallback((workflowId: string, retryCount = 0) => {
+    if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+      console.log('WebSocket não está pronto para solicitar histórico');
+      return;
+    }
+
+    console.log(`Solicitando histórico (tentativa ${retryCount + 1}):`, workflowId);
+    wsRef.current.send(JSON.stringify({
+      type: 'get_history',
+      workflowId: workflowId,
+      limit: 50
+    }));
+
+    // Timeout com retry
+    historyTimeoutRef.current = setTimeout(() => {
+      if (retryCount < 2) { // Máximo 3 tentativas
+        console.warn(`Timeout na tentativa ${retryCount + 1}, tentando novamente...`);
+        historyRetryCountRef.current = retryCount + 1;
+        requestHistory(workflowId, retryCount + 1);
+      } else {
+        console.error('Timeout final no carregamento do histórico após 3 tentativas');
+        setIsLoadingHistory(false);
+        setState(prev => ({
+          ...prev,
+          messages: []
+        }));
+      }
+    }, 5000); // 5 segundos por tentativa
+  }, []);
+
   // Handler unificado para WebSocket
   const handleWebSocketMessage = useCallback((event: MessageEvent) => {
-    const data = JSON.parse(event.data);
+    try {
+      const data = JSON.parse(event.data);
+      console.log('Processando mensagem tipo:', data.type);
 
-    switch (data.type) {
+      switch (data.type) {
       case 'token':
         // Streaming de tokens
         setState(prev => ({
@@ -229,15 +305,45 @@ export const useChatWithPersistence = (workflowId: string) => {
       case 'history':
         // Histórico recebido
         console.log('Histórico recebido:', data.history?.length || 0, 'mensagens');
+        console.log('Dados brutos do histórico:', data.history);
+        
+        // Cancelar timeout e resetar contador se histórico foi recebido
+        if (historyTimeoutRef.current) {
+          clearTimeout(historyTimeoutRef.current);
+          historyTimeoutRef.current = undefined;
+        }
+        historyRetryCountRef.current = 0;
+        
         setIsLoadingHistory(false);
+        
         if (data.history && Array.isArray(data.history)) {
-          const validMessages = data.history.filter((msg: any) => msg.role !== 'tool');
+          // Filtrar apenas mensagens válidas (user e assistant)
+          const validMessages = data.history.filter((msg: any) => {
+            const isValid = msg.role === 'user' || msg.role === 'assistant';
+            if (!isValid) {
+              console.log('Mensagem filtrada (role inválido):', msg.role, msg.id);
+            }
+            return isValid;
+          });
+          
+          console.log('Mensagens após filtro:', validMessages.length, 'de', data.history.length);
+          
           setState(prev => ({
             ...prev,
             messages: validMessages
           }));
+          
           // Marcar como processadas
           validMessages.forEach((msg: any) => processedMessageIds.current.add(msg.id));
+          console.log('Estado atualizado com', validMessages.length, 'mensagens válidas');
+          console.log('IDs processados:', Array.from(processedMessageIds.current));
+          
+        } else {
+          console.log('Nenhum histórico recebido ou formato inválido');
+          setState(prev => ({
+            ...prev,
+            messages: []
+          }));
         }
         break;
 
@@ -245,15 +351,29 @@ export const useChatWithPersistence = (workflowId: string) => {
         // Erro do servidor
         console.error('Erro do servidor:', data.error);
         setIsLoadingHistory(false);
+        
+        // Se o erro for relacionado ao histórico, garantir estado limpo
+        if (data.error?.includes('histórico') || data.error?.includes('history')) {
+          setState(prev => ({
+            ...prev,
+            messages: []
+          }));
+        }
         break;
 
       case 'connected':
         // Conexão confirmada
         console.log('Conectado ao servidor WebSocket');
-        // Set loading to false after timeout if no history response
-        setTimeout(() => {
-          setIsLoadingHistory(false);
-        }, 5000);
+        
+        // Solicitar histórico após confirmação de conexão
+        if (pendingHistoryRequestRef.current) {
+          const workflowToRequest = pendingHistoryRequestRef.current;
+          pendingHistoryRequestRef.current = null;
+          historyRetryCountRef.current = 0;
+          
+          console.log('Solicitando histórico para workflow após "connected":', workflowToRequest);
+          requestHistory(workflowToRequest);
+        }
         break;
 
       case 'tool_start':
@@ -267,6 +387,9 @@ export const useChatWithPersistence = (workflowId: string) => {
 
       default:
         console.log('Unknown message type:', data.type, data);
+    }
+    } catch (error) {
+      console.error('Erro ao processar mensagem WebSocket:', error);
     }
   }, [setIsLoadingHistory]);
 

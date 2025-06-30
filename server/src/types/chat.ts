@@ -45,6 +45,7 @@ export interface UserSession {
   workflowId?: string;
   chatSessionId?: string; // ID da sessão no banco
   connectedAt: Date;
+  userToken?: string; // JWT token do usuário
 }
 
 export interface ChatMessageRequest {

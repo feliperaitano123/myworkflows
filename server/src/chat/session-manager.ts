@@ -127,6 +127,7 @@ export class ChatSessionManager {
    */
   async getSessionHistory(sessionId: string, userToken: string, limit = 50): Promise<ChatMessage[]> {
     try {
+      console.log(`🔍 Buscando mensagens para sessão: ${sessionId}`);
       const supabase = this.getServiceClient();
       
       const { data: messages, error } = await supabase
@@ -137,10 +138,20 @@ export class ChatSessionManager {
         .limit(limit);
 
       if (error) {
+        console.error('❌ Erro na query de mensagens:', error);
         throw new Error(`Erro ao buscar histórico: ${error.message}`);
       }
 
       console.log(`📖 Histórico carregado: ${messages?.length || 0} mensagens`);
+      
+      // Log detalhado das mensagens
+      if (messages && messages.length > 0) {
+        console.log('📋 Detalhes das mensagens:');
+        messages.forEach((msg, index) => {
+          console.log(`  ${index + 1}. ${msg.role}: "${msg.content.substring(0, 50)}..." [${msg.id}]`);
+        });
+      }
+      
       return messages || [];
 
     } catch (error) {
@@ -154,22 +165,32 @@ export class ChatSessionManager {
    */
   async getWorkflowHistory(userId: string, workflowId: string, userToken: string, limit = 50): Promise<ChatMessage[]> {
     try {
+      console.log(`🔍 Buscando histórico para userId: ${userId}, workflowId: ${workflowId}`);
       const supabase = this.getServiceClient();
       
       // Primeiro buscar a sessão
-      const { data: session } = await supabase
+      const { data: session, error: sessionError } = await supabase
         .from('chat_sessions')
         .select('id')
         .eq('user_id', userId)
         .eq('workflow_id', workflowId)
         .single();
 
+      if (sessionError) {
+        console.log('❌ Erro ao buscar sessão:', sessionError);
+        return [];
+      }
+
       if (!session) {
         console.log('📭 Nenhuma sessão encontrada para este workflow');
         return [];
       }
 
-      return await this.getSessionHistory(session.id, userToken, limit);
+      console.log(`✅ Sessão encontrada: ${session.id}`);
+      const history = await this.getSessionHistory(session.id, userToken, limit);
+      console.log(`📚 Histórico retornado: ${history.length} mensagens`);
+      
+      return history;
 
     } catch (error) {
       console.error('❌ Erro ao buscar histórico do workflow:', error);

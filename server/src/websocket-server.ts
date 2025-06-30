@@ -149,14 +149,24 @@ export class AIWebSocketServer {
     session: UserSession
   ): Promise<void> {
     try {
-      const message = JSON.parse(data.toString());
+      const rawMessage = data.toString();
+      console.log(`📨 Backend: Dados brutos recebidos:`, rawMessage);
+      
+      const message = JSON.parse(rawMessage);
       console.log(`📨 Backend: Mensagem recebida tipo: "${message.type}"`);
+      console.log(`📨 Backend: Mensagem completa:`, JSON.stringify(message, null, 2));
       
       if (message.type === 'chat') {
         console.log(`🎯 Modelo recebido: "${message.model || 'não especificado'}"`);
         console.log(`📦 Payload completo:`, message);
       } else if (message.type === 'get_history') {
         console.log(`📖 Backend: get_history request para workflow: ${message.workflowId}`);
+        console.log(`📖 Backend: Parâmetros get_history:`, {
+          workflowId: message.workflowId,
+          limit: message.limit,
+          userId: session.userId,
+          sessionId: session.sessionId
+        });
       }
       
       switch (message.type) {
@@ -165,7 +175,17 @@ export class AIWebSocketServer {
           break;
         case 'get_history':
           console.log(`🔄 Backend: Processando get_history request`);
-          await this.handleGetHistory(ws, message as ChatHistoryRequest, session);
+          try {
+            await this.handleGetHistory(ws, message as ChatHistoryRequest, session);
+          } catch (error) {
+            console.error('❌ Erro em handleGetHistory:', error);
+            const errorMessage: WSChatMessage = {
+              type: 'error',
+              error: `Erro ao buscar histórico: ${error.message}`,
+              sessionId: session.sessionId
+            };
+            ws.send(JSON.stringify(errorMessage));
+          }
           break;
         case 'clear_chat':
           await this.handleClearChat(ws, message as ClearChatRequest, session);
@@ -326,6 +346,17 @@ Você tem acesso a ferramentas que podem:
       console.log(`📖 Backend: Recebendo get_history para workflow: ${message.workflowId}`);
       console.log(`👤 User: ${session.userId}`);
       console.log(`🔧 Debug: session object:`, JSON.stringify(session, null, 2));
+      console.log(`🔑 Debug: userToken disponível: ${!!session.userToken}`);
+      
+      if (!session.userToken) {
+        throw new Error('Token de usuário não encontrado na sessão');
+      }
+      
+      console.log(`🔍 Chamando getWorkflowHistory com parâmetros:`, {
+        userId: session.userId,
+        workflowId: message.workflowId,
+        limit: message.limit || 50
+      });
       
       const history = await this.chatSessionManager.getWorkflowHistory(
         session.userId,

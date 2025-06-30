@@ -11,6 +11,14 @@ const WorkflowChat: React.FC = () => {
   const { workflows, selectedWorkflow, setSelectedWorkflow } = useWorkflowsContext();
   const { showAlert } = useAlert();
 
+  // Log para debug
+  React.useEffect(() => {
+    console.log('WorkflowChat page mounted/updated for workflow:', workflowId);
+    return () => {
+      console.log('WorkflowChat page unmounting for workflow:', workflowId);
+    };
+  }, [workflowId]);
+
   // Encontrar workflow atual
   const currentWorkflow = workflows.find(w => w.id === workflowId);
 
