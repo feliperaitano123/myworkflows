@@ -3,7 +3,7 @@ import { useChatWithPersistence } from '@/hooks/useChatWithPersistence-v2';
 
 interface ChatContextType {
   messages: any[];
-  sendMessage: (content: string, model?: string) => void;
+  sendMessage: (content: string, model?: string, contexts?: Array<{id: string, name: string, type: string}>) => void;
   getToolStatus: (toolCallId: string) => any;
   clearChat: () => void;
   isConnected: boolean;

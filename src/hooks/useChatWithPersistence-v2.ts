@@ -427,15 +427,30 @@ export const useChatWithPersistence = (workflowId: string) => {
   }, [state]);
 
   // Enviar mensagem
-  const sendMessage = useCallback((content: string, model?: string) => {
+  const sendMessage = useCallback((content: string, model?: string, contexts?: Array<{id: string, name: string, type: string}>) => {
     if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
       console.error('WebSocket não conectado');
       return;
     }
 
+    // Formatar mensagem com contextos se existirem
+    let formattedContent = content;
+    if (contexts && contexts.length > 0) {
+      const contextList = contexts.map(ctx => {
+        const typeLabel = ctx.type === 'execution' ? 'Execution' : 
+                         ctx.type === 'credential' ? 'Credential' : 
+                         ctx.type === 'document' ? 'Document' : ctx.type;
+        return `- ${typeLabel}: ${ctx.name}`;
+      }).join('\n');
+      
+      formattedContent = `UserMessage: ${content}\n\nContext:\n${contextList}`;
+    } else {
+      formattedContent = `UserMessage: ${content}`;
+    }
+
     wsRef.current.send(JSON.stringify({ 
       type: 'chat', 
-      content,
+      content: formattedContent,
       workflowId,
       model 
     }));

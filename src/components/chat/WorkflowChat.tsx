@@ -50,10 +50,10 @@ const ChatContent: React.FC<{ workflowId: string }> = ({ workflowId }) => {
       }
     };
     
-    // For now, we'll just send the message content
-    // The backend will be enhanced to handle context data
     console.log('Message with context data:', messageData);
-    sendMessage(content, selectedModel);
+    
+    // Enviar mensagem com contextos formatados
+    sendMessage(content, selectedModel, contexts);
   };
 
   const handleClearChat = () => {

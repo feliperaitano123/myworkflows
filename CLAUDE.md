@@ -272,6 +272,14 @@ Private: / (dashboard), /connections, /library, /settings, /workflow/:id
    - **Execution flow**: assistant → tool_call → tool_result → response
    - **UI expansível**: Tool calls com resumos e status visual
    
+   **Sistema de Contexto (@mentions)**
+   - **@mentions no texto**: Inserção automática de referências no input
+   - **Context Tags**: Badges visuais para Executions, Credentials, Documents
+   - **Envio estruturado**: Contextos enviados formatados para a IA
+   - **Parser inteligente**: Separação automática de mensagem e contexto na UI
+   - **Backwards compatible**: Funciona com mensagens antigas sem contexto
+   - **Read-only badges**: Contextos de mensagens antigas exibidos como badges
+   
    **Persistência e Contexto**
    - **Histórico por workflow**: Isolamento completo entre workflows
    - **Últimas 12 mensagens**: Contexto otimizado para AI
@@ -331,6 +339,9 @@ Private: / (dashboard), /connections, /library, /settings, /workflow/:id
 - ✅ **Visual Grouping**: Agrupamento de mensagens assistant+tools
 - ✅ **Background Consistency**: Diferenciação visual entre user/assistant
 - ✅ **Timezone Support**: Formatação correta para Brasil (UTC-3)
+- ✅ **Context System**: @mentions integrados com envio de contexto para IA
+- ✅ **Smart Parsing**: Parser inteligente que separa mensagem de contexto na UI
+- ✅ **Context Badges**: Visualização elegante de contextos com badges read-only
 
 #### Known Issues (Recently Fixed)
 - ✅ **Fixed**: WebSocket history loading timing issue

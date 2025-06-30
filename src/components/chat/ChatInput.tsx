@@ -96,6 +96,12 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     if (lastAtSymbol !== -1 && lastAtSymbol === cursorPos - 1) {
       setCursorPosition(cursorPos);
       setShowContextPopover(true);
+    } else if (showContextPopover) {
+      // Fechar popover se não estiver mais digitando após @
+      const wordAfterAt = textBeforeCursor.slice(lastAtSymbol + 1);
+      if (lastAtSymbol === -1 || wordAfterAt.includes(' ')) {
+        setShowContextPopover(false);
+      }
     }
   };
 
