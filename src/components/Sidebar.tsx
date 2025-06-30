@@ -192,7 +192,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggleCollapse 
                       <Circle 
                         className={cn(
                           'h-2 w-2 flex-shrink-0 fill-current',
-                          workflow.isActive ? 'text-green-500' : 'text-gray-400'
+                          workflow.isActive ? 'text-green-500' : 'text-red-500'
                         )}
                       />
                       {!isCollapsed && (
