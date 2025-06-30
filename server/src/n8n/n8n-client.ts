@@ -197,7 +197,56 @@ export class N8nAPIClient {
   }
 
   /**
-   * Lista todos os workflows do usuário via API n8n
+   * Lista workflows básicos do usuário via API n8n (apenas id, name, active)
+   * Otimizado para sincronização de nomes - exclui dados pesados
+   */
+  async listWorkflowsBasic(userId: string): Promise<Array<{id: string, name: string, active: boolean}>> {
+    try {
+      const connection = await this.getUserN8nConnection(userId);
+      if (!connection) {
+        throw new Error('Nenhuma conexão n8n ativa encontrada');
+      }
+
+      const n8nUrl = connection.url.replace(/\/$/, '');
+      // Otimização: excludePinnedData=true para reduzir tamanho da resposta
+      const apiUrl = `${n8nUrl}/api/v1/workflows?excludePinnedData=true&limit=250`;
+
+      console.log(`🔧 Buscando workflows básicos (otimizado): ${apiUrl}`);
+
+      const response = await fetch(apiUrl, {
+        method: 'GET',
+        headers: {
+          'X-N8N-API-KEY': connection.apiKey,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Erro na API n8n: ${response.status}`);
+      }
+
+      const workflows = await response.json() as any;
+      const workflowList = workflows.data || workflows;
+      
+      // Filtrar apenas campos necessários para economizar memória
+      const basicWorkflows = workflowList.map((workflow: any) => ({
+        id: workflow.id,
+        name: workflow.name,
+        active: workflow.active || false
+      }));
+
+      console.log(`✅ ${basicWorkflows.length} workflows básicos obtidos (apenas id, name, active)`);
+      return basicWorkflows;
+
+    } catch (error) {
+      console.error('❌ Erro ao listar workflows básicos:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Lista todos os workflows do usuário via API n8n (COMPLETO - usar apenas quando necessário)
+   * @deprecated Use listWorkflowsBasic() para sincronização de nomes
    */
   async listWorkflows(userId: string): Promise<any[]> {
     try {
@@ -226,6 +275,77 @@ export class N8nAPIClient {
 
     } catch (error) {
       console.error('❌ Erro ao listar workflows:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Atualiza os nomes dos workflows no banco com base nos dados do n8n
+   * Versão otimizada que busca apenas campos necessários
+   */
+  async updateWorkflowNames(userId: string): Promise<void> {
+    try {
+      console.log(`🔄 Atualizando nomes dos workflows para usuário: ${userId}`);
+
+      // 1. Buscar workflows do n8n (OTIMIZADO: apenas id, name, active)
+      const n8nWorkflows = await this.listWorkflowsBasic(userId);
+      console.log(`📋 Encontrados ${n8nWorkflows.length} workflows no n8n (dados otimizados)`);
+
+      // 2. Buscar workflows do banco do usuário
+      const { data: localWorkflows, error } = await this.supabase
+        .from('workflows')
+        .select('id, workflow_id, name, active')
+        .eq('user_id', userId);
+
+      if (error) {
+        throw new Error(`Erro ao buscar workflows locais: ${error.message}`);
+      }
+
+      console.log(`💾 Encontrados ${localWorkflows?.length || 0} workflows no banco`);
+
+      // 3. Mapear workflows do n8n por ID
+      const n8nWorkflowMap = new Map();
+      n8nWorkflows.forEach(workflow => {
+        n8nWorkflowMap.set(workflow.id, {
+          name: workflow.name,
+          active: workflow.active
+        });
+      });
+
+      // 4. Atualizar workflows locais com dados do n8n
+      let updatedCount = 0;
+      for (const localWorkflow of localWorkflows || []) {
+        const n8nData = n8nWorkflowMap.get(localWorkflow.workflow_id);
+        
+        if (n8nData) {
+          const needsUpdate = n8nData.name !== localWorkflow.name || n8nData.active !== localWorkflow.active;
+          
+          if (needsUpdate) {
+            console.log(`🔄 Atualizando workflow ${localWorkflow.workflow_id}:`);
+            console.log(`   Nome: "${localWorkflow.name}" → "${n8nData.name}"`);
+            console.log(`   Status: ${localWorkflow.active} → ${n8nData.active}`);
+            
+            const { error: updateError } = await this.supabase
+              .from('workflows')
+              .update({ 
+                name: n8nData.name,
+                active: n8nData.active 
+              })
+              .eq('id', localWorkflow.id);
+
+            if (updateError) {
+              console.error(`❌ Erro ao atualizar workflow ${localWorkflow.id}:`, updateError);
+            } else {
+              updatedCount++;
+            }
+          }
+        }
+      }
+
+      console.log(`✅ ${updatedCount} workflows atualizados com sucesso`);
+
+    } catch (error) {
+      console.error('❌ Erro ao atualizar nomes dos workflows:', error);
       throw error;
     }
   }

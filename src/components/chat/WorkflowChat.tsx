@@ -78,6 +78,7 @@ const ChatContent: React.FC<{ workflowId: string; onClearChatRef?: React.Mutable
       <div className="flex-shrink-0">
         <ChatHeader
           workflowName={currentWorkflow?.name || 'Workflow'}
+          workflowId={currentWorkflow?.workflowId}
           onClearChat={handleClearChat}
           isConnected={isConnected}
           isConnecting={false}

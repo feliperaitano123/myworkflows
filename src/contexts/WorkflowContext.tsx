@@ -1,9 +1,11 @@
 
 import React, { createContext, useContext, useState } from 'react';
 import { useWorkflows } from '@/hooks/useWorkflows';
+import { useWorkflowSync } from '@/hooks/useWorkflowSync';
 
 export interface Workflow {
   id: string;
+  workflowId: string; // n8n workflow ID
   name: string;
   connectionId: string;
   connectionName: string;
@@ -18,6 +20,8 @@ interface WorkflowContextType {
   selectedWorkflow: Workflow | null;
   setSelectedWorkflow: (workflow: Workflow | null) => void;
   refreshWorkflows: () => void;
+  syncWorkflowNames: () => Promise<void>;
+  isSyncing: boolean;
 }
 
 const WorkflowContext = createContext<WorkflowContextType | undefined>(undefined);
@@ -33,14 +37,16 @@ export const useWorkflowsContext = () => {
 export const WorkflowProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [selectedWorkflow, setSelectedWorkflow] = useState<Workflow | null>(null);
   const { data: workflowsData, isLoading, refetch } = useWorkflows();
+  const { syncWorkflowNames: syncNames, isSyncing } = useWorkflowSync();
 
   // Transform database workflows to match the interface
   const workflows: Workflow[] = workflowsData?.map(workflow => ({
     id: workflow.id,
-    name: workflow.workflow_id, // Using workflow_id as name for now
+    workflowId: workflow.workflow_id, // n8n workflow ID
+    name: workflow.name || workflow.workflow_id, // Use real name if available, fallback to workflow_id
     connectionId: workflow.connection_id, // Fixed: use connection_id instead of n8n_connection_id
     connectionName: workflow.connections?.name || 'Unknown Connection',
-    isActive: true, // Default to active for now
+    isActive: workflow.active || false, // Use real active status from n8n
     lastUsed: new Date(workflow.updated_at).toLocaleDateString(),
     description: workflow.description,
   })) || [];
@@ -49,12 +55,20 @@ export const WorkflowProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     refetch();
   };
 
+  const syncWorkflowNames = async () => {
+    await syncNames();
+    // Refresh workflows after sync to get updated names
+    refreshWorkflows();
+  };
+
   const value = {
     workflows,
     isLoading,
     selectedWorkflow,
     setSelectedWorkflow,
-    refreshWorkflows
+    refreshWorkflows,
+    syncWorkflowNames,
+    isSyncing
   };
 
   return (

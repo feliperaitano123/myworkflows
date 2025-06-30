@@ -130,6 +130,31 @@ export class APIServer {
         });
       }
     });
+
+    // POST /api/workflows/sync-names - Atualiza nomes dos workflows do n8n
+    this.app.post('/api/workflows/sync-names', async (req, res) => {
+      try {
+        const userId = (req as any).userId;
+
+        console.log(`🔧 API: Sincronizando nomes dos workflows para usuário ${userId}`);
+
+        await this.n8nClient.updateWorkflowNames(userId);
+        
+        res.json({
+          success: true,
+          message: 'Nomes dos workflows sincronizados com sucesso',
+          timestamp: new Date().toISOString()
+        });
+
+      } catch (error) {
+        console.error('❌ Erro ao sincronizar nomes dos workflows:', error);
+        res.status(500).json({
+          success: false,
+          error: error instanceof Error ? error.message : 'Erro desconhecido',
+          timestamp: new Date().toISOString()
+        });
+      }
+    });
   }
 
   public start(): Promise<void> {

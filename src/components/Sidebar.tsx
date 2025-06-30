@@ -16,7 +16,8 @@ import {
   Workflow,
   Circle,
   MessageSquare,
-  Plus
+  Plus,
+  RefreshCw
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -49,8 +50,17 @@ const navigation = [
 
 export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggleCollapse }) => {
   const location = useLocation();
-  const { workflows, isLoading } = useWorkflowsContext();
+  const { workflows, isLoading, syncWorkflowNames, isSyncing } = useWorkflowsContext();
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+
+  const handleSyncWorkflows = async () => {
+    try {
+      await syncWorkflowNames();
+      console.log('✅ Workflows sincronizados com sucesso');
+    } catch (error) {
+      console.error('❌ Erro ao sincronizar workflows:', error);
+    }
+  };
 
 
   return (
@@ -109,25 +119,49 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggleCollapse 
                     Workflows
                   </span>
                 </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-6 w-6 p-0 hover:bg-accent"
-                  onClick={() => setIsImportModalOpen(true)}
-                >
-                  <Plus className="h-3 w-3" />
-                </Button>
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 w-6 p-0 hover:bg-accent"
+                    onClick={handleSyncWorkflows}
+                    disabled={isSyncing}
+                    title="Sincronizar nomes dos workflows"
+                  >
+                    <RefreshCw className={cn("h-3 w-3", isSyncing && "animate-spin")} />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 w-6 p-0 hover:bg-accent"
+                    onClick={() => setIsImportModalOpen(true)}
+                  >
+                    <Plus className="h-3 w-3" />
+                  </Button>
+                </div>
               </>
             )}
             {isCollapsed && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-8 w-8 p-0 hover:bg-accent justify-center"
-                onClick={() => setIsImportModalOpen(true)}
-              >
-                <Plus className="h-4 w-4" />
-              </Button>
+              <div className="flex flex-col gap-1">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-8 p-0 hover:bg-accent justify-center"
+                  onClick={handleSyncWorkflows}
+                  disabled={isSyncing}
+                  title="Sincronizar nomes dos workflows"
+                >
+                  <RefreshCw className={cn("h-4 w-4", isSyncing && "animate-spin")} />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-8 p-0 hover:bg-accent justify-center"
+                  onClick={() => setIsImportModalOpen(true)}
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
             )}
           </div>
 
