@@ -229,6 +229,112 @@ export class N8nAPIClient {
       throw error;
     }
   }
+
+  /**
+   * Busca execuções de um workflow específico via API n8n
+   * Retorna apenas dados essenciais: id, name, status
+   */
+  async getWorkflowExecutions(workflowId: string, userId: string): Promise<any[]> {
+    try {
+      console.log(`🔧 N8N API: Buscando executions do workflow ${workflowId} para usuário ${userId}`);
+
+      // 1. Buscar conexão n8n do usuário
+      const connection = await this.getUserN8nConnection(userId);
+      if (!connection) {
+        throw new Error('Nenhuma conexão n8n ativa encontrada para este usuário');
+      }
+
+      // 2. Buscar o workflow no nosso banco para pegar o workflow_id do n8n
+      const { data: workflowData, error: workflowError } = await this.supabase
+        .from('workflows')
+        .select('workflow_id, name')
+        .eq('id', workflowId)
+        .eq('user_id', userId)
+        .single();
+
+      if (workflowError || !workflowData) {
+        throw new Error(`Workflow ${workflowId} não encontrado no sistema`);
+      }
+
+      const n8nWorkflowId = workflowData.workflow_id;
+      console.log(`📋 Buscando executions para workflow: ${workflowData.name} (n8n ID: ${n8nWorkflowId})`);
+
+      // 3. Fazer chamada para API do n8n para buscar executions
+      const n8nUrl = connection.url.replace(/\/$/, '');
+      // Endpoint para listar executions com filtro por workflow
+      const apiUrl = `${n8nUrl}/api/v1/executions?workflowId=${n8nWorkflowId}&limit=50`;
+
+      console.log(`🌐 Fazendo chamada para n8n executions: ${apiUrl}`);
+
+      const response = await fetch(apiUrl, {
+        method: 'GET',
+        headers: {
+          'X-N8N-API-KEY': connection.apiKey.trim(),
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'User-Agent': 'MyWorkflows-Agent/1.0'
+        },
+      });
+
+      console.log(`✅ Fetch executions executado, status: ${response.status}`);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`❌ n8n API Error ${response.status}:`, errorText);
+        
+        if (response.status === 401) {
+          throw new Error('API Key inválida ou expirada para n8n');
+        } else if (response.status === 404) {
+          throw new Error(`Workflow ${n8nWorkflowId} não encontrado no n8n`);
+        } else if (response.status === 403) {
+          throw new Error('Sem permissão para acessar executions deste workflow no n8n');
+        } else {
+          throw new Error(`Erro na API n8n: ${response.status} - ${errorText}`);
+        }
+      }
+
+      const executionsResponse = await response.json() as any;
+      console.log(`✅ Executions obtidas com sucesso do n8n!`);
+      
+      // Extract executions array from response (n8n can return { data: [...] } or direct array)
+      const executions = executionsResponse.data || executionsResponse || [];
+      console.log(`📊 Encontradas ${executions.length} executions`);
+
+      // 4. Filtrar apenas dados essenciais para o frontend
+      const essentialExecutions = executions.map((execution: any) => ({
+        id: execution.id,
+        name: execution.workflowData?.name || `Execution ${execution.id}`,
+        status: this.mapExecutionStatus(execution.finished, execution.mode, execution.stoppedAt),
+        startedAt: execution.startedAt,
+        finishedAt: execution.stoppedAt,
+        mode: execution.mode,
+        workflowId: execution.workflowId
+      }));
+
+      return essentialExecutions;
+
+    } catch (error) {
+      console.error('❌ Erro ao buscar executions do workflow:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Mapeia status de execution do n8n para formato simplificado
+   */
+  private mapExecutionStatus(finished: boolean, mode: string, stoppedAt: string | null): 'success' | 'error' | 'running' | 'waiting' {
+    if (!finished) {
+      return 'running';
+    }
+    
+    if (finished && stoppedAt) {
+      // Se terminou normalmente, assumir sucesso
+      // TODO: Verificar se n8n retorna dados de erro para determinar falha
+      return 'success';
+    }
+    
+    return 'waiting';
+  }
 }
 
 // Singleton instance

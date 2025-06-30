@@ -6,7 +6,8 @@ import {
 } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ChevronLeft, ChevronRight, Play, Key, FileText, CheckCircle2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Play, Key, FileText, CheckCircle2, Loader2, AlertCircle } from 'lucide-react';
+import { useExecutions, useExecutionStatus } from '@/hooks/useExecutions';
 
 export interface ContextItem {
   id: string;
@@ -20,6 +21,7 @@ interface ContextPopoverProps {
   onSelectContext: (context: ContextItem) => void;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
+  workflowId?: string; // Adicionado para buscar executions
 }
 
 const CONTEXT_TYPES = [
@@ -66,13 +68,25 @@ export const ContextPopover: React.FC<ContextPopoverProps> = ({
   trigger,
   onSelectContext,
   open,
-  onOpenChange
+  onOpenChange,
+  workflowId
 }) => {
   const [currentView, setCurrentView] = useState<'main' | 'executions' | 'credentials' | 'documents'>('main');
+  
+  // Hooks para buscar executions reais
+  const { data: executions, isLoading: isLoadingExecutions, error: executionsError } = useExecutions(workflowId || '');
+  const { getStatusConfig, formatDate } = useExecutionStatus();
 
   const getContextData = (type: string): ContextItem[] => {
     switch (type) {
-      case 'executions': return MOCK_EXECUTIONS;
+      case 'executions': 
+        if (!executions) return [];
+        return executions.map(execution => ({
+          id: execution.id,
+          name: execution.name,
+          type: 'execution' as const,
+          description: `${getStatusConfig(execution.status).label} • ${formatDate(execution.startedAt)}`
+        }));
       case 'credentials': return MOCK_CREDENTIALS;
       case 'documents': return MOCK_DOCUMENTS;
       default: return [];
@@ -154,26 +168,86 @@ export const ContextPopover: React.FC<ContextPopoverProps> = ({
 
             {/* Context items */}
             <div className="space-y-1 max-h-60 overflow-y-auto">
-              {getContextData(currentView).map((item) => (
-                <Button
-                  key={item.id}
-                  variant="ghost"
-                  className="w-full justify-start h-auto p-2 text-left"
-                  onClick={() => handleSelectContext(item)}
-                >
-                  <div className="flex items-start gap-2 w-full">
-                    <CheckCircle2 className="w-3 h-3 mt-1 text-muted-foreground flex-shrink-0" />
-                    <div className="min-w-0 flex-1">
-                      <div className="text-sm font-medium truncate">{item.name}</div>
-                      {item.description && (
-                        <div className="text-xs text-muted-foreground truncate">
-                          {item.description}
-                        </div>
-                      )}
+              {currentView === 'executions' ? (
+                // Renderização especial para executions com loading/error states
+                <>
+                  {isLoadingExecutions ? (
+                    <div className="flex items-center justify-center py-8">
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span className="text-sm">Carregando executions...</span>
+                      </div>
                     </div>
-                  </div>
-                </Button>
-              ))}
+                  ) : executionsError ? (
+                    <div className="flex items-center justify-center py-8">
+                      <div className="flex items-center gap-2 text-destructive">
+                        <AlertCircle className="w-4 h-4" />
+                        <span className="text-sm">Erro ao carregar executions</span>
+                      </div>
+                    </div>
+                  ) : getContextData(currentView).length === 0 ? (
+                    <div className="flex items-center justify-center py-8">
+                      <div className="text-center text-muted-foreground">
+                        <Play className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                        <span className="text-sm">Nenhuma execution encontrada</span>
+                      </div>
+                    </div>
+                  ) : (
+                    getContextData(currentView).map((item) => {
+                      // Para executions, buscar dados originais para obter status
+                      const execution = executions?.find(e => e.id === item.id);
+                      const statusConfig = execution ? getStatusConfig(execution.status) : null;
+                      
+                      return (
+                        <Button
+                          key={item.id}
+                          variant="ghost"
+                          className="w-full justify-start h-auto p-2 text-left"
+                          onClick={() => handleSelectContext(item)}
+                        >
+                          <div className="flex items-start gap-2 w-full">
+                            {statusConfig ? (
+                              <span className="text-xs mt-1 flex-shrink-0">{statusConfig.icon}</span>
+                            ) : (
+                              <CheckCircle2 className="w-3 h-3 mt-1 text-muted-foreground flex-shrink-0" />
+                            )}
+                            <div className="min-w-0 flex-1">
+                              <div className="text-sm font-medium truncate">{item.name}</div>
+                              {item.description && (
+                                <div className="text-xs text-muted-foreground truncate">
+                                  {item.description}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </Button>
+                      );
+                    })
+                  )}
+                </>
+              ) : (
+                // Renderização normal para outros tipos de contexto
+                getContextData(currentView).map((item) => (
+                  <Button
+                    key={item.id}
+                    variant="ghost"
+                    className="w-full justify-start h-auto p-2 text-left"
+                    onClick={() => handleSelectContext(item)}
+                  >
+                    <div className="flex items-start gap-2 w-full">
+                      <CheckCircle2 className="w-3 h-3 mt-1 text-muted-foreground flex-shrink-0" />
+                      <div className="min-w-0 flex-1">
+                        <div className="text-sm font-medium truncate">{item.name}</div>
+                        {item.description && (
+                          <div className="text-xs text-muted-foreground truncate">
+                            {item.description}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </Button>
+                ))
+              )}
             </div>
           </div>
         )}

@@ -11,13 +11,15 @@ interface ChatInputProps {
   disabled?: boolean;
   selectedModel: string;
   onModelChange: (model: string) => void;
+  workflowId?: string; // Adicionado para passar para ContextPopover
 }
 
 export const ChatInput: React.FC<ChatInputProps> = ({ 
   onSend, 
   disabled,
   selectedModel,
-  onModelChange
+  onModelChange,
+  workflowId
 }) => {
   const [message, setMessage] = useState('');
   const [selectedContexts, setSelectedContexts] = useState<ContextItem[]>([]);
@@ -140,6 +142,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
             onSelectContext={handleAddContext}
             open={showContextPopover}
             onOpenChange={setShowContextPopover}
+            workflowId={workflowId}
           />
           
           {/* Text Input */}

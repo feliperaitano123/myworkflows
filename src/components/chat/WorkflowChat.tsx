@@ -116,6 +116,7 @@ const ChatContent: React.FC<{ workflowId: string; onClearChatRef?: React.Mutable
           disabled={!isConnected}
           selectedModel={selectedModel}
           onModelChange={setSelectedModel}
+          workflowId={workflowId}
         />
       </div>
 

@@ -181,7 +181,7 @@ export class AIWebSocketServer {
             console.error('❌ Erro em handleGetHistory:', error);
             const errorMessage: WSChatMessage = {
               type: 'error',
-              error: `Erro ao buscar histórico: ${error.message}`,
+              error: `Erro ao buscar histórico: ${error instanceof Error ? error.message : String(error)}`,
               sessionId: session.sessionId
             };
             ws.send(JSON.stringify(errorMessage));
@@ -278,6 +278,7 @@ export class AIWebSocketServer {
           type: 'message_saved',
           message: {
             id: userMessageId,
+            session_id: session.chatSessionId || '',
             role: 'user',
             content: message.content,
             metadata: {
@@ -494,6 +495,7 @@ Você tem acesso a ferramentas que podem:
           type: 'message_saved',
           message: {
             id: assistantMessageId,
+            session_id: session.chatSessionId || '',
             role: 'assistant',
             content: fullResponse,
             metadata: {

@@ -26,6 +26,10 @@ export interface ChatMessage {
       success?: boolean;
     }>;
     tokens_used?: number;
+    tokens?: {
+      input: number;
+      output: number;
+    };
     model?: string;
     response_time_ms?: number;
     message_type?: string;
