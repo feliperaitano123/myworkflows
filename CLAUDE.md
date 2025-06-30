@@ -101,8 +101,50 @@ curl -X POST http://localhost:3002/api/workflows/sync-names \
 #### GET /api/workflows/:workflowId/executions
 Busca execuções de um workflow específico.
 
+**Response:**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "exec-123",
+      "name": "Execution #123",
+      "status": "success", // success | error | running | waiting
+      "startedAt": "2024-01-01T12:00:00.000Z",
+      "finishedAt": "2024-01-01T12:01:00.000Z",
+      "mode": "manual",
+      "workflowId": "workflow-456"
+    }
+  ],
+  "count": 1,
+  "timestamp": "2024-01-01T12:00:00.000Z"
+}
+```
+
 #### GET /api/workflows/:workflowId/details
 Busca detalhes completos de um workflow.
+
+### MyExecutions Implementation
+
+#### Context System Integration
+- **@mentions no Chat**: Usuário digita `@` para abrir ContextPopover
+- **Real-time Loading**: Hook `useExecutions` busca executions via API
+- **Visual Feedback**: Ícones de status (✅❌⏳⏸️) e timestamps formatados
+- **Error Handling**: Loading states, error messages, empty states
+- **Smart Caching**: React Query cache com 30s stale time
+
+#### Backend Architecture
+```
+Frontend → useExecutions → ExecutionsService → API Server (3002)
+                            ↓
+N8nAPIClient.getWorkflowExecutions() → n8n API (/api/v1/executions)
+```
+
+#### Security & Performance
+- **API Key Sanitization**: Remove caracteres unicode problemáticos (U+2028, etc.)
+- **Payload Optimization**: Apenas id, name, status (99% redução de dados)
+- **JWT Authentication**: Todas chamadas protegidas por token
+- **CORS**: Configurado para localhost:8080
 
 ### N8n API Integration
 
@@ -110,10 +152,19 @@ Busca detalhes completos de um workflow.
 - **listWorkflowsBasic()**: Busca apenas id, name, active (99% menos dados)
 - **excludePinnedData=true**: Remove dados pesados desnecessários
 - **Batch updates**: Atualiza múltiplos workflows de uma vez
+- **sanitizeApiKey()**: Remove caracteres unicode invisíveis e de controle
 
 ## Recent Updates
 
-### Workflow Sync & Copy Features (Latest)
+### MyExecutions System Implementation (Latest)
+- ✅ **Backend APIs**: Servidor REST (porta 3002) + endpoint `/api/workflows/:id/executions`
+- ✅ **N8n Integration**: `getWorkflowExecutions()` com payload otimizado (id, name, status)
+- ✅ **Frontend Integration**: `useExecutions` hook + React Query cache
+- ✅ **Context System**: Executions reais integradas no ContextPopover (@mentions)
+- ✅ **UX Complete**: Loading states, error handling, empty states, status icons
+- ✅ **API Key Fix**: Sanitização de caracteres unicode problemáticos (ByteString)
+
+### Workflow Sync & Copy Features
 - ✅ **Workflow Names Sync**: Botão na sidebar para sincronizar nomes reais do n8n
 - ✅ **Copy Workflow ID**: Botão no chat header para copiar ID do workflow
 - ✅ **Real Status Display**: Círculo verde/cinza baseado no status ativo do n8n
