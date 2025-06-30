@@ -56,9 +56,21 @@ export const WorkflowProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   };
 
   const syncWorkflowNames = async () => {
-    await syncNames();
-    // Refresh workflows after sync to get updated names
-    refreshWorkflows();
+    try {
+      console.log('🔄 Iniciando sincronização...');
+      await syncNames();
+      
+      // Aguardar um pouco para garantir que o banco foi atualizado
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      console.log('🔄 Fazendo refresh dos workflows...');
+      // Refresh workflows after sync to get updated data
+      refreshWorkflows();
+      
+      console.log('✅ Sincronização completa!');
+    } catch (error) {
+      console.error('❌ Erro na sincronização:', error);
+    }
   };
 
   const value = {

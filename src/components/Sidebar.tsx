@@ -55,8 +55,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggleCollapse 
 
   const handleSyncWorkflows = async () => {
     try {
+      console.log('🔄 Botão sync clicado, iniciando sincronização...');
+      console.log('📊 Workflows antes da sync:', workflows.map(w => ({id: w.id, name: w.name, isActive: w.isActive})));
+      
       await syncWorkflowNames();
+      
       console.log('✅ Workflows sincronizados com sucesso');
+      console.log('📊 Workflows após sync:', workflows.map(w => ({id: w.id, name: w.name, isActive: w.isActive})));
     } catch (error) {
       console.error('❌ Erro ao sincronizar workflows:', error);
     }

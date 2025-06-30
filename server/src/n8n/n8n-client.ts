@@ -302,6 +302,8 @@ export class N8nAPIClient {
         },
       });
 
+      console.log(`📡 Response status: ${response.status} para workflow ${workflowId}`);
+      
       if (response.status === 200) {
         const workflow = await response.json();
         console.log(`✅ Workflow ${workflowId} existe: "${workflow.name}" (ativo: ${workflow.active})`);
@@ -311,10 +313,11 @@ export class N8nAPIClient {
           active: workflow.active || false
         };
       } else if (response.status === 404) {
-        console.log(`❌ Workflow ${workflowId} não existe mais no n8n`);
+        console.log(`❌ Workflow ${workflowId} não existe mais no n8n (404)`);
         return { exists: false };
       } else {
-        console.warn(`⚠️ Erro ao verificar workflow ${workflowId}: ${response.status}`);
+        const errorText = await response.text();
+        console.warn(`⚠️ Erro ao verificar workflow ${workflowId}: ${response.status} - ${errorText}`);
         return { exists: false };
       }
 
@@ -361,28 +364,38 @@ export class N8nAPIClient {
           // Workflow existe no n8n
           existingCount++;
           
-          // Verificar se nome ou status mudaram
+          // Verificar se nome mudou
           if (checkResult.name && checkResult.name !== localWorkflow.name) {
             updateData.name = checkResult.name;
             needsUpdate = true;
             console.log(`📝 Nome: "${localWorkflow.name}" → "${checkResult.name}"`);
           }
           
-          // Marcar como ativo (existe no n8n)
+          // SEMPRE marcar como ativo quando existe no n8n
           if (!localWorkflow.active) {
             updateData.active = true;
             needsUpdate = true;
             console.log(`🟢 Status: inativo → ativo (existe no n8n)`);
+          } else {
+            // Garantir que está ativo mesmo se já estava ativo
+            updateData.active = true;
+            needsUpdate = true;
+            console.log(`🟢 Confirmando status ativo (existe no n8n)`);
           }
         } else {
           // Workflow NÃO existe no n8n
           missingCount++;
           
-          // Marcar como inativo (não existe no n8n)
+          // SEMPRE marcar como inativo quando não existe no n8n
           if (localWorkflow.active) {
             updateData.active = false;
             needsUpdate = true;
             console.log(`🔴 Status: ativo → inativo (não existe no n8n)`);
+          } else {
+            // Garantir que está inativo mesmo se já estava inativo
+            updateData.active = false;
+            needsUpdate = true;
+            console.log(`🔴 Confirmando status inativo (não existe no n8n)`);
           }
         }
 
