@@ -15,6 +15,21 @@ export class N8nAPIClient {
   }
 
   /**
+   * Sanitiza API key removendo apenas caracteres unicode problemáticos
+   */
+  private sanitizeApiKey(apiKey: string): string {
+    return apiKey
+      .trim()
+      // Remove apenas caracteres unicode invisíveis problemáticos para ByteString
+      .replace(/[\u2000-\u206F]/g, '') // Espaços unicode especiais
+      .replace(/[\u2028\u2029]/g, '') // Line separators que causam o erro específico
+      .replace(/[\u200B-\u200D\uFEFF]/g, '') // Zero-width characters
+      // Remove caracteres de controle C0 e C1
+      .replace(/[\u0000-\u001F\u007F-\u009F]/g, '')
+      .trim();
+  }
+
+  /**
    * Busca a conexão n8n ativa do usuário
    */
   private async getUserN8nConnection(userId: string): Promise<{
@@ -43,9 +58,14 @@ export class N8nAPIClient {
       }
 
       console.log(`✅ Conexão n8n encontrada: ${data.name} (${data.n8n_url})`);
+      
+      // Sanitizar API key antes de retornar
+      const sanitizedApiKey = this.sanitizeApiKey(data.n8n_api_key);
+      console.log(`🔑 API Key original length: ${data.n8n_api_key.length}, sanitizada: ${sanitizedApiKey.length}`);
+      
       return {
         url: data.n8n_url,
-        apiKey: data.n8n_api_key,
+        apiKey: sanitizedApiKey,
         name: data.name,
       };
 
@@ -88,59 +108,33 @@ export class N8nAPIClient {
       const apiUrl = `${n8nUrl}/api/v1/workflows/${n8nWorkflowId}`;
 
       console.log(`🌐 Fazendo chamada para n8n: ${apiUrl}`);
-      console.log(`🔗 Conexão URL: ${connection.url}`);
-      console.log(`🔑 API Key characters: ${connection.apiKey.split('').map(char => char.charCodeAt(0)).join(', ')}`);
-      
-      // Verificar se URL tem caracteres especiais
-      const urlEncoded = encodeURI(apiUrl);
-      console.log(`🌐 URL encoded: ${urlEncoded}`);
+      console.log(`🔑 API Key preview: ${connection.apiKey.substring(0, 10)}...${connection.apiKey.substring(connection.apiKey.length - 3)}`);
 
-      // Sanitizar API Key para remover caracteres especiais
-      const sanitizedApiKey = connection.apiKey.trim().replace(/[^\x00-\x7F]/g, "");
-      
-      console.log(`🔑 API Key original length: ${connection.apiKey.length}`);
-      console.log(`🔑 API Key sanitizada length: ${sanitizedApiKey.length}`);
-      console.log(`🔑 API Key preview: ${sanitizedApiKey.substring(0, 10)}...`);
-
-      let response: Response;
-      
-      try {
-        response = await fetch(apiUrl, {
-          method: 'GET',
-          headers: {
-            'X-N8N-API-KEY': sanitizedApiKey,
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-            'User-Agent': 'MyWorkflows-Agent/1.0'
-          },
-        });
+      const response = await fetch(apiUrl, {
+        method: 'GET',
+        headers: {
+          'X-N8N-API-KEY': connection.apiKey,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'User-Agent': 'MyWorkflows-Agent/1.0'
+        },
+      });
         
-        console.log(`✅ Fetch executado, status: ${response.status}`);
+      console.log(`✅ Fetch executado, status: ${response.status}`);
 
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error(`❌ n8n API Error ${response.status}:`, errorText);
-          
-          if (response.status === 401) {
-            throw new Error('API Key inválida ou expirada para n8n');
-          } else if (response.status === 404) {
-            throw new Error(`Workflow ${n8nWorkflowId} não encontrado no n8n`);
-          } else if (response.status === 403) {
-            throw new Error('Sem permissão para acessar este workflow no n8n');
-          } else {
-            throw new Error(`Erro na API n8n: ${response.status} - ${errorText}`);
-          }
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`❌ n8n API Error ${response.status}:`, errorText);
+        
+        if (response.status === 401) {
+          throw new Error('API Key inválida ou expirada para n8n');
+        } else if (response.status === 404) {
+          throw new Error(`Workflow ${n8nWorkflowId} não encontrado no n8n`);
+        } else if (response.status === 403) {
+          throw new Error('Sem permissão para acessar este workflow no n8n');
+        } else {
+          throw new Error(`Erro na API n8n: ${response.status} - ${errorText}`);
         }
-      } catch (fetchError) {
-        console.error(`❌ Erro no fetch para n8n:`, fetchError);
-        
-        // Re-throw original error if it's our custom error
-        if (fetchError instanceof Error && fetchError.message.includes('API Key inválida')) {
-          throw fetchError;
-        }
-        
-        // For fetch errors, provide more context
-        throw new Error(`Erro de conexão com n8n: ${(fetchError as Error).message}`);
       }
 
       const workflowJson = await response.json() as any;
@@ -305,7 +299,7 @@ export class N8nAPIClient {
       console.log(`📡 Response status: ${response.status} para workflow ${workflowId}`);
       
       if (response.status === 200) {
-        const workflow = await response.json();
+        const workflow = await response.json() as any;
         console.log(`✅ Workflow ${workflowId} existe: "${workflow.name}" (ativo: ${workflow.active})`);
         return {
           exists: true,
@@ -358,8 +352,8 @@ export class N8nAPIClient {
         
         const checkResult = await this.checkWorkflowExists(localWorkflow.workflow_id, userId);
         
-        // Salvar no cache para retornar ao frontend
-        statusCache[localWorkflow.id] = {
+        // Salvar no cache para retornar ao frontend (usar workflow_id como chave)
+        statusCache[localWorkflow.workflow_id] = {
           exists: checkResult.exists,
           name: checkResult.name
         };
@@ -392,6 +386,7 @@ export class N8nAPIClient {
       console.log(`   🟢 Existem no n8n: ${existingCount}`);
       console.log(`   🔴 Não existem no n8n: ${missingCount}`);
       console.log(`   📝 Nomes atualizados: ${nameUpdatesCount}`);
+      console.log(`💾 Cache construído:`, Object.keys(statusCache).map(key => `${key}: ${statusCache[key].exists ? 'exists' : 'missing'}`));
 
       return statusCache;
 

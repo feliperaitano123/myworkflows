@@ -183,7 +183,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggleCollapse 
             ) : workflows.length > 0 ? (
               workflows.map((workflow) => {
                 const isActive = location.pathname === `/workflow/${workflow.id}`;
-                const workflowStatus = getWorkflowStatus(workflow.id);
+                const workflowStatus = getWorkflowStatus(workflow.workflowId);
                 
                 // Determinar cor baseada no status do cache
                 let statusColor = 'text-gray-400'; // Padrão: cinza (não verificado)

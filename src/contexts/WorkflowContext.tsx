@@ -48,7 +48,7 @@ export const WorkflowProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     name: workflow.name || workflow.workflow_id, // Use real name if available, fallback to workflow_id
     connectionId: workflow.connection_id, // Fixed: use connection_id instead of n8n_connection_id
     connectionName: workflow.connections?.name || 'Unknown Connection',
-    isActive: getWorkflowStatus(workflow.id) === 'exists', // Usa cache do status
+    isActive: getWorkflowStatus(workflow.workflow_id) === 'exists', // Usa cache do status
     lastUsed: new Date(workflow.updated_at).toLocaleDateString(),
     description: workflow.description,
   })) || [];

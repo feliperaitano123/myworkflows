@@ -36,12 +36,19 @@ export function useWorkflowSync() {
 
       const result = await response.json();
       console.log('✅ Workflows validados:', result.message);
-      console.log('📊 Status cache:', result.data);
+      console.log('📊 Status cache recebido do backend:', result.data);
       
       // Atualizar cache local
-      setStatusCache(result.data || {});
+      const newCache = result.data || {};
+      setStatusCache(newCache);
       
-      return result.data || {};
+      console.log('💾 Cache local atualizado:', newCache);
+      console.log('🔍 Verificação por workflow:');
+      Object.entries(newCache).forEach(([id, status]) => {
+        console.log(`  - ${id}: exists=${status.exists} name="${status.name}"`);
+      });
+      
+      return newCache;
 
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Erro desconhecido';
@@ -58,10 +65,21 @@ export function useWorkflowSync() {
 
   // Função para verificar status de um workflow específico
   const getWorkflowStatus = (workflowId: string): 'unknown' | 'exists' | 'missing' => {
+    console.log(`🔍 getWorkflowStatus(${workflowId}):`);
+    console.log(`   Cache keys:`, Object.keys(statusCache));
+    console.log(`   Workflow exists in cache:`, workflowId in statusCache);
+    
     if (!(workflowId in statusCache)) {
+      console.log(`   → Resultado: 'unknown' (não no cache)`);
       return 'unknown'; // Não verificado ainda
     }
-    return statusCache[workflowId].exists ? 'exists' : 'missing';
+    
+    const status = statusCache[workflowId];
+    const result = status.exists ? 'exists' : 'missing';
+    console.log(`   Cache data:`, status);
+    console.log(`   → Resultado: '${result}' (exists=${status.exists})`);
+    
+    return result;
   };
 
   // Limpar cache (para forçar nova verificação)
