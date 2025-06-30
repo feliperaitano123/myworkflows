@@ -235,6 +235,15 @@ Private: / (dashboard), /connections, /library, /settings, /workflow/:id
 - **Events**: Comprehensive event system
 - **Persistence**: Automatic message saving
 
+#### API Architecture (Reusable n8n APIs)
+- **Backend-First Approach**: All n8n API calls centralized in backend
+- **REST Endpoints**: `/api/workflows/:id/executions`, `/api/connections/:id/credentials`
+- **Single Source of Truth**: n8n integration logic in one place
+- **Security**: API keys never exposed to frontend
+- **Caching**: Backend-level caching for performance
+- **Error Handling**: Centralized error management and retry logic
+- **Multi-Consumer**: Same APIs used by Frontend UI and MCP Tools
+
 ### Features Principais
 
 1. **Autenticação** (✅ Implementada)
@@ -391,6 +400,70 @@ Private: / (dashboard), /connections, /library, /settings, /workflow/:id
 - **Documentation**: Inline code documentation
 - **Testing Tools**: WebSocket test scripts
 - **Debug Mode**: Verbose logging options
+
+### API Architecture (Reusable n8n Integration)
+
+#### Overview
+Sistema centralizado de APIs para integração com n8n, reutilizável tanto no Frontend quanto no MCP (Model Context Protocol). Toda lógica de comunicação com n8n fica no backend, garantindo segurança e performance.
+
+#### Architecture Pattern
+```
+┌─────────────────┐    ┌─────────────────┐
+│   Frontend UI   │    │   MCP Tools     │
+│  (Modal, etc)   │    │ (getExecutions) │
+└─────────┬───────┘    └─────────┬───────┘
+          │                      │
+          ▼                      ▼
+┌─────────────────────────────────────────┐
+│           Backend REST APIs             │
+│     (/api/workflows/.../executions)     │
+└─────────────────┬───────────────────────┘
+                  │
+                  ▼
+┌─────────────────────────────────────────┐
+│              n8n API                    │
+│        (GET /executions)                │
+└─────────────────────────────────────────┘
+```
+
+#### Backend Endpoints
+- **GET /api/workflows/:workflowId/executions** - Buscar execuções do workflow
+- **GET /api/connections/:connectionId/credentials** - Listar credentials da conexão
+- **GET /api/workflows/:workflowId/nodes** - Buscar nodes do workflow
+- **GET /api/connections/:connectionId/test** - Testar conexão n8n
+
+#### Frontend Services Layer
+```typescript
+// services/executionsService.ts
+export class ExecutionsService {
+  static async getWorkflowExecutions(workflowId: string) {
+    const response = await fetch(`/api/workflows/${workflowId}/executions`);
+    return response.json();
+  }
+}
+
+// hooks/useExecutions.ts  
+export const useExecutions = (workflowId: string) => {
+  return useQuery({
+    queryKey: ['executions', workflowId],
+    queryFn: () => ExecutionsService.getWorkflowExecutions(workflowId)
+  });
+};
+```
+
+#### Key Benefits
+- **Security**: n8n API keys permanecem no backend
+- **Performance**: Cache centralizado, rate limiting
+- **Consistency**: Single source of truth para n8n data
+- **Error Handling**: Tratamento unificado de erros
+- **Type Safety**: Interfaces compartilhadas entre frontend/MCP
+- **Optimization**: Retorna apenas dados necessários (id, name, status)
+
+#### Data Optimization
+- **Minimal Payloads**: Apenas id, name, status para UI
+- **No Execution Data**: Evita dados pesados desnecessários
+- **Pagination Support**: Para listas grandes
+- **Smart Caching**: Cache inteligente por workflow/connection
 
 ### Testing and Validation
 
