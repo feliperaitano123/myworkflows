@@ -284,6 +284,10 @@ Private: / (dashboard), /connections, /library, /settings, /workflow/:id
    - **Smooth animations**: Fade-in e scroll automático
    - **Welcome screen**: Sugestões interativas (Workflow/Code/Bug)
    - **Connection status**: Indicador visual verde/vermelho
+   - **Markdown & Syntax Highlighting**: Detecção automática de JSON/código
+   - **Interactive UI**: Botões hover para copy/like/dislike
+   - **Visual Grouping**: Agrupamento inteligente de mensagens assistant+tools
+   - **Clean Layout**: Background diferenciado para mensagens do usuário
    
    **Modelos Disponíveis**
    - Claude 3.5 Sonnet & Haiku
@@ -318,10 +322,23 @@ Private: / (dashboard), /connections, /library, /settings, /workflow/:id
 - **Rate Limiting**: Not implemented on API calls
 - **Caching Strategy**: Could optimize with Redis
 
+#### Recent Major Improvements (2025-01)
+- ✅ **Chat Input Redesign**: Layout compacto e moderno seguindo design patterns
+- ✅ **Layout Architecture**: Hierarquia de altura corrigida, sem elementos fora da tela
+- ✅ **Tool Status System**: Corrigido spinning infinito, ícones de status inteligentes
+- ✅ **Markdown Rendering**: Syntax highlighting automático para JSON e código
+- ✅ **Interactive UI**: Sistema de hover para botões de feedback
+- ✅ **Visual Grouping**: Agrupamento de mensagens assistant+tools
+- ✅ **Background Consistency**: Diferenciação visual entre user/assistant
+- ✅ **Timezone Support**: Formatação correta para Brasil (UTC-3)
+
 #### Known Issues (Recently Fixed)
 - ✅ **Fixed**: WebSocket history loading timing issue
 - ✅ **Fixed**: Message get_history not reaching server  
 - ✅ **Fixed**: Chat history not displaying after page refresh
+- ✅ **Fixed**: Tool calls spinning infinitely
+- ✅ **Fixed**: ChatInput disappearing after history load
+- ✅ **Fixed**: Background conflicts in message display
 - WebSocket reconnection can be flaky on poor connections
 - Large workflows (>100 nodes) may cause performance issues
 - No offline support or message queueing
