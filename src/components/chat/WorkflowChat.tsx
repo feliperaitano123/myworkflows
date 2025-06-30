@@ -1,10 +1,11 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { ChatProvider, useChat } from '@/contexts/ChatContext';
 import { ChatMessage } from './ChatMessage-v2';
-import { ChatInput } from './ChatInput-v2';
+import { ChatInput } from './ChatInput';
 import { WelcomeScreen } from './WelcomeScreen';
 import { ChatHeader } from './ChatHeader';
 import { TypingIndicator } from './TypingIndicator';
+import { ClearChatModal } from './ClearChatModal';
 import { useWorkflowsContext } from '@/contexts/WorkflowContext';
 
 interface WorkflowChatProps {
@@ -14,9 +15,11 @@ interface WorkflowChatProps {
 const ChatContent: React.FC<{ workflowId: string }> = ({ workflowId }) => {
   const { messages, sendMessage, clearChat, isConnected, isLoadingHistory } = useChat();
   const { workflows } = useWorkflowsContext();
+  
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [selectedModel, setSelectedModel] = useState('anthropic/claude-3.5-sonnet');
   const [isAiThinking, setIsAiThinking] = useState(false);
+  const [showClearModal, setShowClearModal] = useState(false);
 
   const currentWorkflow = workflows.find(w => w.id === workflowId);
   
@@ -35,53 +38,85 @@ const ChatContent: React.FC<{ workflowId: string }> = ({ workflowId }) => {
     }
   }, [messages, isAiThinking]);
 
-  const handleSendMessage = (content: string) => {
+  const handleSendMessage = (content: string, contexts?: any[]) => {
+    // Prepare structured data for backend
+    const messageData = {
+      content,
+      contexts: contexts || [],
+      metadata: {
+        hasContext: contexts && contexts.length > 0,
+        contextTypes: contexts ? contexts.map(c => c.type) : [],
+        contextCount: contexts ? contexts.length : 0
+      }
+    };
+    
+    // For now, we'll just send the message content
+    // The backend will be enhanced to handle context data
+    console.log('Message with context data:', messageData);
     sendMessage(content, selectedModel);
   };
 
   const handleClearChat = () => {
+    setShowClearModal(true);
+  };
+
+  const handleConfirmClear = () => {
     clearChat();
   };
 
   return (
-    <div className="flex flex-col h-full">
-      {/* Header */}
-      <ChatHeader
-        workflowName={currentWorkflow?.name || 'Workflow'}
-        selectedModel={selectedModel}
-        onModelChange={setSelectedModel}
-        onClearChat={handleClearChat}
-        isConnected={isConnected}
-        isConnecting={false}
-        messageCount={messages.length}
-      />
-
-      {/* Área de mensagens */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-2 chat-messages">
-        {isLoadingHistory ? (
-          <div className="flex items-center justify-center h-full">
-            <div className="text-muted-foreground flex items-center gap-2">
-              <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-              Carregando histórico...
-            </div>
-          </div>
-        ) : messages.length === 0 ? (
-          <WelcomeScreen />
-        ) : (
-          <>
-            {messages.map(message => (
-              <ChatMessage key={message.id} message={message} />
-            ))}
-            {isAiThinking && <TypingIndicator />}
-          </>
-        )}
-        <div ref={messagesEndRef} />
+    <div className="h-full flex flex-col">
+      {/* Header - Fixed height */}
+      <div className="flex-shrink-0">
+        <ChatHeader
+          workflowName={currentWorkflow?.name || 'Workflow'}
+          onClearChat={handleClearChat}
+          isConnected={isConnected}
+          isConnecting={false}
+          messageCount={messages.length}
+        />
       </div>
 
-      {/* Input */}
-      <ChatInput
-        onSend={handleSendMessage}
-        disabled={!isConnected}
+      {/* Área de mensagens - Flexible height */}
+      <div className="flex-1 overflow-y-auto min-h-0">
+        <div className="p-4 space-y-2 chat-messages">
+          {isLoadingHistory ? (
+            <div className="flex items-center justify-center h-full">
+              <div className="text-muted-foreground flex items-center gap-2">
+                <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                Carregando histórico...
+              </div>
+            </div>
+          ) : messages.length === 0 ? (
+            <WelcomeScreen />
+          ) : (
+            <>
+              {messages.map(message => (
+                <ChatMessage key={message.id} message={message} />
+              ))}
+              {isAiThinking && <TypingIndicator />}
+            </>
+          )}
+          <div ref={messagesEndRef} />
+        </div>
+      </div>
+
+      {/* Input - Fixed position at bottom */}
+      <div className="flex-shrink-0">
+        <ChatInput
+          onSend={handleSendMessage}
+          disabled={!isConnected}
+          selectedModel={selectedModel}
+          onModelChange={setSelectedModel}
+        />
+      </div>
+
+      {/* Clear Chat Modal */}
+      <ClearChatModal
+        isOpen={showClearModal}
+        onClose={() => setShowClearModal(false)}
+        onConfirm={handleConfirmClear}
+        messageCount={messages.length}
       />
     </div>
   );

@@ -3,7 +3,6 @@ import { cn } from '@/lib/utils';
 import { ToolCallIndicator } from './ToolCallIndicator';
 import { MarkdownContent } from './MarkdownContent';
 import { useChat } from '@/contexts/ChatContext';
-import { User, Bot } from 'lucide-react';
 
 interface ChatMessageProps {
   message: {
@@ -31,23 +30,16 @@ export const ChatMessage = React.memo<ChatMessageProps>(({ message }) => {
 
   return (
     <div className={cn(
-      "flex gap-3 p-4 rounded-lg message-enter",
-      isUser ? "bg-muted/30" : "bg-background"
+      "p-4 message-enter",
+      // Remover qualquer background baseado no role
+      "bg-transparent"
     )}>
-      {/* Avatar */}
-      <div className={cn(
-        "flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center",
-        isUser ? "bg-primary text-primary-foreground" : "bg-muted"
-      )}>
-        {isUser ? <User className="w-4 h-4" /> : <Bot className="w-4 h-4" />}
-      </div>
-      
       {/* Content */}
-      <div className="flex-1 space-y-2">
+      <div className="space-y-2">
         {/* Conteúdo da mensagem */}
         <MarkdownContent 
           content={message.content}
-          className="prose prose-sm max-w-none dark:prose-invert"
+          className=""
         />
 
         {/* Tool calls se houver */}

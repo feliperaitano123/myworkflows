@@ -58,14 +58,9 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
 
   return (
     <Select value={value} onValueChange={onChange}>
-      <SelectTrigger className="w-[240px]">
+      <SelectTrigger className="h-8 w-auto min-w-[80px] border-0 bg-transparent px-2 text-xs font-medium">
         <SelectValue>
-          <div className="flex flex-col items-start">
-            <span className="font-medium">{selectedModel?.label}</span>
-            <span className="text-xs text-muted-foreground">
-              {selectedModel?.description}
-            </span>
-          </div>
+          <span className="text-xs font-medium">{selectedModel?.label || 'Auto'}</span>
         </SelectValue>
       </SelectTrigger>
       <SelectContent>

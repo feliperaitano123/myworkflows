@@ -16,24 +16,41 @@ export const ToolCallIndicator: React.FC<ToolCallIndicatorProps> = ({
   status 
 }) => {
   const getIcon = () => {
-    if (!status || status.status === 'executing') {
-      return <Loader2 className="w-4 h-4 animate-spin" />;
-    }
-    
-    if (status.status === 'success') {
-      // Ícones específicos por tool
+    // Se não há status definido, assumir que a tool já foi executada com sucesso (histórico)
+    if (!status) {
+      // Para tool calls antigas (do histórico), mostrar ícone de sucesso
       switch (toolCall.name) {
         case 'getWorkflow':
-          return <Search className="w-4 h-4" />;
+          return <Search className="w-4 h-4 text-green-600" />;
         case 'createNode':
-          return <Plus className="w-4 h-4" />;
+          return <Plus className="w-4 h-4 text-green-600" />;
         case 'executeWorkflow':
-          return <Play className="w-4 h-4" />;
+          return <Play className="w-4 h-4 text-green-600" />;
         default:
-          return <Check className="w-4 h-4" />;
+          return <Check className="w-4 h-4 text-green-600" />;
       }
     }
     
+    // Se está executando, mostrar spinner
+    if (status.status === 'executing') {
+      return <Loader2 className="w-4 h-4 animate-spin" />;
+    }
+    
+    // Se foi executada com sucesso
+    if (status.status === 'success') {
+      switch (toolCall.name) {
+        case 'getWorkflow':
+          return <Search className="w-4 h-4 text-green-600" />;
+        case 'createNode':
+          return <Plus className="w-4 h-4 text-green-600" />;
+        case 'executeWorkflow':
+          return <Play className="w-4 h-4 text-green-600" />;
+        default:
+          return <Check className="w-4 h-4 text-green-600" />;
+      }
+    }
+    
+    // Se houve erro
     return <X className="w-4 h-4 text-destructive" />;
   };
 

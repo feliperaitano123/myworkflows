@@ -56,7 +56,9 @@ const WorkflowChat: React.FC = () => {
         }}
       />
       {/* Chat Component */}
-      <WorkflowChatComponent workflowId={workflowId!} />
+      <div className="flex-1 min-h-0">
+        <WorkflowChatComponent workflowId={workflowId!} />
+      </div>
     </div>
   );
 };

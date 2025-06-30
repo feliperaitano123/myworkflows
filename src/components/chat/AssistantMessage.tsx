@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { MessageSquare, Clock } from 'lucide-react';
 import { MarkdownRenderer } from './MarkdownRenderer';
@@ -33,9 +32,7 @@ export const AssistantMessage: React.FC<AssistantMessageProps> = ({
           <CopyButton content={content} />
         </div>
         
-        <div className="rounded-lg p-4">
-          <MarkdownRenderer content={content} />
-        </div>
+        <MarkdownRenderer content={content} />
       </div>
     </div>
   );

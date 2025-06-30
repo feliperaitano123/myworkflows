@@ -328,9 +328,23 @@ export const useChatWithPersistence = (workflowId: string) => {
           
           console.log('Mensagens após filtro:', validMessages.length, 'de', data.history.length);
           
+          // Criar status para tool calls antigas (assumir sucesso)
+          const newToolStatuses = new Map<string, ToolStatus>();
+          validMessages.forEach((msg: any) => {
+            if (msg.metadata?.toolCalls) {
+              msg.metadata.toolCalls.forEach((toolCall: any) => {
+                newToolStatuses.set(toolCall.id, {
+                  toolCallId: toolCall.id,
+                  status: 'success'
+                });
+              });
+            }
+          });
+          
           setState(prev => ({
             ...prev,
-            messages: validMessages
+            messages: validMessages,
+            toolStatuses: newToolStatuses
           }));
           
           // Marcar como processadas

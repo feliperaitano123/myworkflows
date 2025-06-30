@@ -1,13 +1,10 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Trash2, Settings } from 'lucide-react';
-import { ModelSelector } from './ModelSelector';
 import { ConnectionStatus } from './ConnectionStatus';
 
 interface ChatHeaderProps {
   workflowName: string;
-  selectedModel: string;
-  onModelChange: (model: string) => void;
   onClearChat: () => void;
   isConnected: boolean;
   isConnecting: boolean;
@@ -17,8 +14,6 @@ interface ChatHeaderProps {
 
 export const ChatHeader: React.FC<ChatHeaderProps> = ({
   workflowName,
-  selectedModel,
-  onModelChange,
   onClearChat,
   isConnected,
   isConnecting,
@@ -45,11 +40,6 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
         
         {/* Right side - Controls */}
         <div className="flex items-center gap-3">
-          <ModelSelector
-            value={selectedModel}
-            onChange={onModelChange}
-          />
-          
           <Button
             variant="outline"
             size="sm"

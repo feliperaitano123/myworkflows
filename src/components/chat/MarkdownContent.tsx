@@ -12,8 +12,8 @@ export const MarkdownContent: React.FC<MarkdownContentProps> = ({
   // Por enquanto renderizar como texto simples
   // TODO: Implementar markdown real mais tarde
   return (
-    <div className={className}>
-      <pre className="whitespace-pre-wrap font-sans break-words">
+    <div className={`bg-transparent ${className || ''}`}>
+      <pre className="whitespace-pre-wrap font-sans break-words bg-transparent text-foreground">
         {content}
       </pre>
     </div>

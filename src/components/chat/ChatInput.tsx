@@ -1,155 +1,177 @@
-
-import React from 'react';
+import React, { useState, useRef, KeyboardEvent } from 'react';
+import { Send, Plus, ArrowUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Send, Loader2, Plus, Mic, FileText, Play } from 'lucide-react';
-import { AttachmentSheet } from './AttachmentSheet';
-
-interface AttachmentItem {
-  id: string;
-  name: string;
-  type: 'document' | 'execution';
-}
+import { ModelSelector } from './ModelSelector';
+import { ContextPopover, ContextItem } from './ContextPopover';
+import { ContextTag } from './ContextTag';
 
 interface ChatInputProps {
-  inputMessage: string;
-  setInputMessage: (message: string) => void;
+  onSend: (message: string, contexts?: ContextItem[]) => void;
+  disabled?: boolean;
   selectedModel: string;
-  setSelectedModel: (model: string) => void;
-  isLoading: boolean;
-  selectedAttachments: AttachmentItem[];
-  isAttachmentSheetOpen: boolean;
-  setIsAttachmentSheetOpen: (open: boolean) => void;
-  mockDocuments: AttachmentItem[];
-  mockExecutions: AttachmentItem[];
-  onSendMessage: () => void;
-  onKeyDown: (e: React.KeyboardEvent) => void;
-  onAttachmentSelect: (item: AttachmentItem) => void;
-  onRemoveAttachment: (attachmentId: string) => void;
+  onModelChange: (model: string) => void;
 }
 
-export const ChatInput: React.FC<ChatInputProps> = ({
-  inputMessage,
-  setInputMessage,
+export const ChatInput: React.FC<ChatInputProps> = ({ 
+  onSend, 
+  disabled,
   selectedModel,
-  setSelectedModel,
-  isLoading,
-  selectedAttachments,
-  isAttachmentSheetOpen,
-  setIsAttachmentSheetOpen,
-  mockDocuments,
-  mockExecutions,
-  onSendMessage,
-  onKeyDown,
-  onAttachmentSelect,
-  onRemoveAttachment
+  onModelChange
 }) => {
+  const [message, setMessage] = useState('');
+  const [selectedContexts, setSelectedContexts] = useState<ContextItem[]>([]);
+  const [showContextPopover, setShowContextPopover] = useState(false);
+  const [cursorPosition, setCursorPosition] = useState(0);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const handleSend = () => {
+    if (message.trim() && !disabled) {
+      onSend(message.trim(), selectedContexts);
+      setMessage('');
+      setSelectedContexts([]);
+      
+      // Reset textarea height
+      if (textareaRef.current) {
+        textareaRef.current.style.height = 'auto';
+        textareaRef.current.focus();
+      }
+    }
+  };
+
+  const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    } else if (e.key === '@' && !showContextPopover) {
+      // Track cursor position for @ mentions
+      setCursorPosition(e.currentTarget.selectionStart || 0);
+      setShowContextPopover(true);
+    }
+  };
+
+  const handleAddContext = (context: ContextItem) => {
+    // Avoid duplicates
+    if (!selectedContexts.find(c => c.id === context.id)) {
+      setSelectedContexts(prev => [...prev, context]);
+      
+      // If triggered by @ symbol, replace it with the context mention
+      if (cursorPosition > 0 && message.charAt(cursorPosition - 1) === '@') {
+        const beforeCursor = message.slice(0, cursorPosition - 1);
+        const afterCursor = message.slice(cursorPosition);
+        const mentionText = `@${context.name}`;
+        setMessage(beforeCursor + mentionText + afterCursor);
+        
+        // Move cursor after the mention
+        setTimeout(() => {
+          if (textareaRef.current) {
+            const newCursorPos = beforeCursor.length + mentionText.length;
+            textareaRef.current.selectionStart = newCursorPos;
+            textareaRef.current.selectionEnd = newCursorPos;
+            textareaRef.current.focus();
+          }
+        }, 0);
+      }
+    }
+  };
+
+  const handleRemoveContext = (contextId: string) => {
+    setSelectedContexts(prev => prev.filter(c => c.id !== contextId));
+  };
+
+  const handleTextareaChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const value = e.target.value;
+    setMessage(value);
+    
+    // Auto-resize textarea
+    const textarea = e.target;
+    textarea.style.height = 'auto';
+    textarea.style.height = `${Math.min(textarea.scrollHeight, 120)}px`;
+    
+    // Check for @ symbol to trigger context popover
+    const cursorPos = e.target.selectionStart || 0;
+    const textBeforeCursor = value.slice(0, cursorPos);
+    const lastAtSymbol = textBeforeCursor.lastIndexOf('@');
+    
+    if (lastAtSymbol !== -1 && lastAtSymbol === cursorPos - 1) {
+      setCursorPosition(cursorPos);
+      setShowContextPopover(true);
+    }
+  };
+
   return (
-    <div className="border-t border-border p-4">
-      <div className="space-y-3">
-        {/* Selected Attachments */}
-        {selectedAttachments.length > 0 && (
+    <div className="border-t bg-background">
+      {/* Context tags row - only show when contexts exist */}
+      {selectedContexts.length > 0 && (
+        <div className="px-4 py-2 border-b">
           <div className="flex flex-wrap gap-2">
-            {selectedAttachments.map((attachment) => (
-              <div 
-                key={attachment.id}
-                className="flex items-center gap-2 bg-secondary text-secondary-foreground px-3 py-1 rounded-full text-sm"
-              >
-                {attachment.type === 'document' ? (
-                  <FileText className="h-3 w-3" />
-                ) : (
-                  <Play className="h-3 w-3" />
-                )}
-                <span>{attachment.name}</span>
-                <button
-                  onClick={() => onRemoveAttachment(attachment.id)}
-                  className="ml-1 hover:bg-secondary-foreground/10 rounded-full p-0.5"
-                >
-                  ×
-                </button>
-              </div>
+            {selectedContexts.map((context) => (
+              <ContextTag
+                key={context.id}
+                context={context}
+                onRemove={handleRemoveContext}
+              />
             ))}
           </div>
-        )}
-
-        {/* Main Input Container */}
-        <div className="flex items-center gap-3 bg-muted/50 rounded-xl p-3 border">
+        </div>
+      )}
+      
+      {/* Main input area */}
+      <div className="p-4">
+        <div className="flex items-end gap-3 bg-muted/30 rounded-lg border p-3">
           {/* Add Context Button */}
-          <AttachmentSheet
-            isOpen={isAttachmentSheetOpen}
-            onOpenChange={setIsAttachmentSheetOpen}
-            onAttachmentSelect={onAttachmentSelect}
-            mockDocuments={mockDocuments}
-            mockExecutions={mockExecutions}
+          <ContextPopover
+            trigger={
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 px-2 text-muted-foreground hover:text-foreground"
+                disabled={disabled}
+              >
+                <Plus className="w-4 h-4" />
+              </Button>
+            }
+            onSelectContext={handleAddContext}
+            open={showContextPopover}
+            onOpenChange={setShowContextPopover}
           />
-          <Button 
-            variant="ghost" 
-            size="sm"
-            onClick={() => setIsAttachmentSheetOpen(true)}
-            className="flex items-center gap-2 text-muted-foreground hover:text-foreground px-3 py-2 h-auto"
-          >
-            <Plus className="h-4 w-4" />
-            <span className="text-sm">Add context</span>
-          </Button>
-
+          
           {/* Text Input */}
-          <div className="flex-1 relative">
-            <Textarea 
-              placeholder="Ask AI anything, @ to mention"
-              value={inputMessage}
-              onChange={(e) => setInputMessage(e.target.value)}
-              onKeyDown={onKeyDown}
-              className="min-h-[40px] max-h-[120px] resize-none border-0 bg-transparent px-0 py-2 focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-muted-foreground/70"
-              maxLength={2000}
+          <div className="flex-1">
+            <Textarea
+              ref={textareaRef}
+              value={message}
+              onChange={handleTextareaChange}
+              onKeyDown={handleKeyDown}
+              placeholder="Ask, learn, brainstorm"
+              disabled={disabled}
+              className="min-h-[24px] max-h-[120px] resize-none border-0 bg-transparent px-0 py-0 text-sm focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-muted-foreground"
+              rows={1}
             />
           </div>
-
-          {/* Model Selection */}
-          <Select value={selectedModel} onValueChange={setSelectedModel}>
-            <SelectTrigger className="w-32 h-8 border-0 bg-transparent">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {/* OpenRouter Programming Models */}
-              <SelectItem value="anthropic/claude-3-haiku">Claude 3 Haiku</SelectItem>
-              <SelectItem value="anthropic/claude-3.5-sonnet">Claude 3.5 Sonnet</SelectItem>
-              <SelectItem value="openai/gpt-4o-mini">GPT-4o Mini</SelectItem>
-              <SelectItem value="openai/gpt-4o">GPT-4o</SelectItem>
-              <SelectItem value="meta-llama/llama-3.1-8b-instruct">Llama 3.1 8B</SelectItem>
-              <SelectItem value="meta-llama/llama-3.1-70b-instruct">Llama 3.1 70B</SelectItem>
-              <SelectItem value="deepseek/deepseek-coder">DeepSeek Coder</SelectItem>
-              <SelectItem value="microsoft/wizardcoder-34b">WizardCoder 34B</SelectItem>
-            </SelectContent>
-          </Select>
-
-          {/* Mic Button */}
-          <Button 
-            variant="ghost" 
-            size="sm"
-            className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
-          >
-            <Mic className="h-4 w-4" />
-          </Button>
-
+          
+          {/* Model Selector */}
+          <div className="flex items-center gap-2">
+            <ModelSelector
+              value={selectedModel}
+              onChange={onModelChange}
+            />
+          </div>
+          
           {/* Send Button */}
-          <Button 
-            onClick={onSendMessage}
-            disabled={!inputMessage.trim() || isLoading}
-            className="h-8 w-8 p-0"
+          <Button
+            onClick={handleSend}
+            disabled={disabled || !message.trim()}
+            size="sm"
+            className="h-8 w-8 rounded-full p-0"
           >
-            {isLoading ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Send className="h-4 w-4" />
-            )}
+            <ArrowUp className="w-4 h-4" />
           </Button>
         </div>
-
-        {/* Footer Info */}
-        <div className="flex justify-between items-center text-xs text-muted-foreground px-1">
-          <span>Press Shift+Enter for new line</span>
-          <span>{inputMessage.length}/2000</span>
+        
+        {/* Footer text */}
+        <div className="mt-2 text-xs text-muted-foreground text-center">
+          Press Enter to send, Shift+Enter for new line
         </div>
       </div>
     </div>
