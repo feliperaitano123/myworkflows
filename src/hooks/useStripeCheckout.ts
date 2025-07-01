@@ -1,13 +1,14 @@
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
+import { getSupabaseToken } from '@/utils/auth';
 
 export const useStripeCheckout = () => {
   const [isLoading, setIsLoading] = useState(false);
   const { user } = useAuth();
 
   const getAuthToken = async (): Promise<string> => {
-    const token = localStorage.getItem('auth-token');
+    const token = await getSupabaseToken();
     if (!token) {
       throw new Error('Token de autenticação não encontrado');
     }

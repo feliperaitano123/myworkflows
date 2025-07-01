@@ -17,7 +17,7 @@
         "-y",
         "@stripe/mcp",
         "--tools=all",
-        "--api-key=${STRIPE_SECRET_KEY}"
+        "--api-key=sk_test_51Rg3bhGaw3aSGzhhKsZT2dioGBkLzvGBJRqpUXQ5XXvRgH70RTWvEbdx53AvllKkPCHNUbqwWNmYOhXMb2pHR8lG00LiW9qY5e"
       ]
     }
   }

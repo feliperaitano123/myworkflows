@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { getSupabaseToken } from '@/utils/auth';
 
 interface UserUsage {
   id: string;
@@ -32,7 +33,11 @@ export const useRateLimit = () => {
   const { data: limits, isLoading, error } = useQuery<UserUsage>({
     queryKey: ['rate-limits', user?.id],
     queryFn: async () => {
-      const token = localStorage.getItem('auth-token');
+      const token = await getSupabaseToken();
+      
+      if (!token) {
+        throw new Error('No authentication token available');
+      }
       
       const response = await fetch('http://localhost:3002/api/usage/status', {
         headers: {

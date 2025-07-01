@@ -12,9 +12,8 @@ const WEBHOOK_URL = 'http://localhost:3002/api/billing/webhook';
 const WEBHOOK_SECRET = 'whsec_test_webhook_secret_for_local_development';
 
 // Função para criar signature do Stripe
-function createStripeSignature(payload, secret) {
+function createStripeSignature(payloadString, secret) {
   const timestamp = Math.floor(Date.now() / 1000);
-  const payloadString = JSON.stringify(payload);
   const signedPayload = `${timestamp}.${payloadString}`;
   
   const signature = crypto
@@ -59,6 +58,7 @@ function makePostRequest(url, data, headers) {
     });
 
     req.on('error', (err) => {
+      console.error('Request error:', err.message);
       reject(err);
     });
 
@@ -86,7 +86,8 @@ async function simulateCheckoutCompleted(userId = 'test-user-123', planType = 'p
     }
   };
 
-  const signature = createStripeSignature(event, WEBHOOK_SECRET);
+  const payloadString = JSON.stringify(event);
+  const signature = createStripeSignature(payloadString, WEBHOOK_SECRET);
   
   try {
     const response = await makePostRequest(WEBHOOK_URL, event, {
@@ -97,6 +98,7 @@ async function simulateCheckoutCompleted(userId = 'test-user-123', planType = 'p
     console.log('📦 Response:', response.data);
   } catch (error) {
     console.error('❌ Error sending webhook:', error.message);
+    console.error('Full error:', error);
   }
 }
 
@@ -114,7 +116,8 @@ async function simulateSubscriptionUpdated() {
     }
   };
 
-  const signature = createStripeSignature(event, WEBHOOK_SECRET);
+  const payloadString = JSON.stringify(event);
+  const signature = createStripeSignature(payloadString, WEBHOOK_SECRET);
   
   try {
     const response = await makePostRequest(WEBHOOK_URL, event, {
@@ -125,6 +128,7 @@ async function simulateSubscriptionUpdated() {
     console.log('📦 Response:', response.data);
   } catch (error) {
     console.error('❌ Error sending webhook:', error.message);
+    console.error('Full error:', error);
   }
 }
 

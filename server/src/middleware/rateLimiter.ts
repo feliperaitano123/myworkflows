@@ -155,21 +155,35 @@ export class RateLimiter {
 
   async getUserUsageStatus(userId: string): Promise<any> {
     try {
-      const { data: usage, error } = await supabase
+      // Buscar usage e profile separadamente
+      const { data: usage, error: usageError } = await supabase
         .from('user_usage')
-        .select(`
-          *,
-          user_profiles!inner(plan_type)
-        `)
+        .select('*')
         .eq('user_id', userId)
         .single();
 
-      if (error) {
-        console.error('❌ Erro ao buscar status de uso:', error);
+      if (usageError) {
+        console.error('❌ Erro ao buscar status de uso:', usageError);
         return null;
       }
 
-      return usage;
+      // Buscar profile separadamente
+      const { data: profile, error: profileError } = await supabase
+        .from('user_profiles')
+        .select('plan_type')
+        .eq('user_id', userId)
+        .single();
+
+      if (profileError) {
+        console.error('❌ Erro ao buscar perfil:', profileError);
+        return usage; // Retorna usage mesmo sem profile
+      }
+
+      // Combinar os dados
+      return {
+        ...usage,
+        plan_type: profile?.plan_type || 'free'
+      };
     } catch (error) {
       console.error('❌ Erro ao buscar status de uso:', error);
       return null;
