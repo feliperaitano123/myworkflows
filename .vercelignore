@@ -64,5 +64,5 @@ build/
 ehthumbs.db
 Thumbs.db
 
-# Supabase
-supabase/
+# Supabase CLI (not the client code)
+/supabase/
