@@ -194,3 +194,80 @@ choices
 list of objects or null
 
 Show 1 properties
+
+
+-----
+
+List available providers
+GET
+https://openrouter.ai/api/v1/providers
+GET
+/api/v1/providers
+
+cURL
+
+curl https://openrouter.ai/api/v1/providers
+Try it
+200
+Retrieved
+
+{
+  "data": [
+    {
+      "name": "OpenAI",
+      "slug": "openai",
+      "may_log_prompts": true,
+      "may_train_on_data": false,
+      "moderated_by_openrouter": false,
+      "privacy_policy_url": "https://openai.com/policies/privacy-policy/",
+      "terms_of_service_url": "https://openai.com/policies/row-terms-of-use/",
+      "status_page_url": "https://status.openai.com/"
+    },
+    {
+      "name": "Anthropic",
+      "slug": "anthropic",
+      "may_log_prompts": false,
+      "may_train_on_data": false,
+      "moderated_by_openrouter": false,
+      "privacy_policy_url": "https://www.anthropic.com/privacy",
+      "terms_of_service_url": "https://www.anthropic.com/terms",
+      "status_page_url": "https://status.anthropic.com/"
+    }
+  ]
+}
+Returns a list of providers available through the API with their policies and status information.
+Response
+List of providers
+data
+list of objects
+
+Hide 8 properties
+name
+string
+Provider name
+slug
+string
+Provider slug identifier
+may_log_prompts
+boolean
+Whether the provider may log/retain user prompts
+
+may_train_on_data
+boolean
+Whether the provider may train models on user data
+moderated_by_openrouter
+boolean
+Whether the provider is moderated by OpenRouter
+privacy_policy_url
+string or null
+URL to the provider's privacy policy
+terms_of_service_url
+string or null
+URL to the provider's terms of service
+status_page_url
+string or null
+URL to the provider's status page
+Was this page helpful?
+Yes
+No
+Previous
