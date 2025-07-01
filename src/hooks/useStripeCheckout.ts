@@ -38,8 +38,8 @@ export const useStripeCheckout = () => {
         },
         body: JSON.stringify({
           planType,
-          successUrl: `${window.location.origin}/settings/billing?success=true`,
-          cancelUrl: `${window.location.origin}/settings/billing?canceled=true`
+          successUrl: `${window.location.origin}/settings?tab=billing&success=true`,
+          cancelUrl: `${window.location.origin}/settings?tab=billing&canceled=true`
         })
       });
       

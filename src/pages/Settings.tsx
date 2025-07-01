@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Header } from '@/components/Header';
 import { Card } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -13,11 +13,40 @@ import { LogOut, Save, CreditCard, ExternalLink, Zap, Clock } from 'lucide-react
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { useRateLimit } from '@/hooks/useRateLimit';
 import { useStripeCheckout } from '@/hooks/useStripeCheckout';
+import { useSearchParams } from 'react-router-dom';
+import { toast } from '@/hooks/use-toast';
 
 const Settings = () => {
+  const [searchParams] = useSearchParams();
   const { profile, isPro, isActive } = useUserProfile();
   const { limits, isPro: isProFromLimits } = useRateLimit();
   const { createCheckoutSession, openCustomerPortal, isLoading } = useStripeCheckout();
+  
+  // Get tab from URL or default to 'account'
+  const defaultTab = searchParams.get('tab') || 'account';
+  const [activeTab, setActiveTab] = React.useState(defaultTab);
+  
+  // Handle success/cancel from Stripe
+  useEffect(() => {
+    if (searchParams.get('success') === 'true') {
+      toast({
+        title: "Pagamento realizado com sucesso!",
+        description: "Seu plano foi atualizado. Pode levar alguns instantes para refletir as mudanças.",
+      });
+      // Remove success param from URL
+      searchParams.delete('success');
+      window.history.replaceState({}, '', `${window.location.pathname}?${searchParams}`);
+    } else if (searchParams.get('canceled') === 'true') {
+      toast({
+        title: "Pagamento cancelado",
+        description: "O processo de upgrade foi cancelado.",
+        variant: "destructive"
+      });
+      // Remove canceled param from URL
+      searchParams.delete('canceled');
+      window.history.replaceState({}, '', `${window.location.pathname}?${searchParams}`);
+    }
+  }, [searchParams]);
 
   const handleSaveChanges = () => {
     console.log('Saving changes...');
@@ -48,7 +77,7 @@ const Settings = () => {
       />
       
       <div className="flex-1 overflow-y-auto p-6">
-        <Tabs defaultValue="account" className="space-y-6">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="account">Account</TabsTrigger>
             <TabsTrigger value="billing">Billing</TabsTrigger>
