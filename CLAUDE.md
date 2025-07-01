@@ -714,3 +714,129 @@ STRIPE_WEBHOOK_SECRET=whsec_xxx
 - [ ] Advanced analytics dashboard
 - [ ] Team workspaces
 - [ ] Workflow versioning
+
+---
+
+## ✅ BILLING SYSTEM IMPLEMENTATION STATUS (January 2025)
+
+### 🎉 **FASE 1 - Database & Backend** ✅ **COMPLETE**
+
+#### Database Schema
+- ✅ **user_profiles**: Perfil de usuário com dados de billing
+- ✅ **user_usage**: Controle de uso (daily/monthly limits)
+- ✅ **plan_configs**: Configuração dinâmica de planos (Free/Pro)
+- ✅ **usage_logs**: Log detalhado de uso com tokens e créditos
+- ✅ **billing_events**: Eventos de billing do Stripe
+- ✅ **credit_adjustments**: Ajustes manuais de créditos
+
+#### Security & Functions
+- ✅ **RLS Policies**: Todas as tabelas protegidas
+- ✅ **handle_new_user()**: Trigger automático para criar perfil/usage
+- ✅ **increment_user_usage()**: Function para incrementar uso
+
+#### Rate Limiting System
+- ✅ **RateLimiter Class**: server/src/middleware/rateLimiter.ts
+- ✅ **Credit Estimation**: Baseada em custos reais do OpenRouter
+- ✅ **WebSocket Integration**: Rate limiting em tempo real no chat
+- ✅ **Model Cost Mapping**: 8 modelos com preços precisos
+
+#### API Endpoints
+- ✅ **GET /api/usage/status**: Status atual de uso do usuário
+- ✅ **POST /api/usage/check**: Verifica se pode fazer ação
+- ✅ **POST /api/usage/record**: Registra uso após AI processing
+- ✅ **GET /api/billing/plans**: Lista planos disponíveis
+- ✅ **POST /api/billing/create-checkout-session**: Stripe checkout (estrutura)
+- ✅ **POST /api/billing/create-portal-session**: Stripe portal (estrutura)
+- ✅ **POST /api/billing/webhook**: Webhooks Stripe (estrutura)
+
+#### Stripe Integration
+- ✅ **Product Created**: MyWorkflows Pro produto criado
+- ✅ **Price Setup**: $20/mês (⚠️ ajustar para recorrente no Dashboard)
+- ✅ **Database Integration**: IDs salvos em plan_configs
+
+### 🎉 **FASE 2 - Frontend** ✅ **COMPLETE**
+
+#### Core Hooks
+- ✅ **useRateLimit**: src/hooks/useRateLimit.ts
+  - Verifica limites em tempo real
+  - Atualiza a cada 30s
+  - Suporte Free (daily) e Pro (monthly credits)
+
+- ✅ **useUserProfile**: src/hooks/useUserProfile.ts
+  - Perfil do usuário com plano
+  - Auto-criação via trigger
+
+- ✅ **useFeatureAccess**: src/hooks/useFeatureAccess.ts
+  - Controle de acesso a features
+  - Verificação de limites (connections, workflows)
+
+- ✅ **useStripeCheckout**: src/hooks/useStripeCheckout.ts
+  - Checkout e portal do Stripe
+  - Error handling com toasts
+
+#### UI Components
+- ✅ **UsageIndicator**: src/components/UsageIndicator.tsx
+  - Para o header
+  - Mostra créditos Pro / interações Free
+  - Visual feedback (low credits, critical)
+
+- ✅ **UpgradeModal**: src/components/UpgradeModal.tsx
+  - 4 triggers: daily_limit, connection_limit, workflow_limit, feature_locked
+  - Benefícios dinâmicos por trigger
+  - Integração com Stripe checkout
+
+- ✅ **FeatureGate**: src/components/FeatureGate.tsx
+  - Controla acesso a features Pro
+  - Overlay com ícone de lock
+  - Trigger para upgrade modal
+
+#### Enhanced Chat Experience
+- ✅ **ChatInput Rate Limiting**: src/components/chat/ChatInput.tsx
+  - Verificação antes de enviar
+  - Visual indicators (remaining messages/credits)
+  - Upgrade prompts integrados
+  - Toast para última mensagem Free
+
+#### Billing Page
+- ✅ **Settings Billing Tab**: src/pages/Settings.tsx
+  - Plano atual dinâmico
+  - Uso do período (Progress bars)
+  - Estatísticas totais
+  - Comparação de planos (Free vs Pro)
+  - Botões upgrade/portal integrados
+
+### ⚠️ **PENDING - Stripe Integration**
+- [ ] **Configurar preço recorrente**: No Stripe Dashboard
+- [ ] **Implementar checkout real**: Substituir placeholders
+- [ ] **Webhook handlers**: Processar eventos reais
+- [ ] **Customer portal**: Gerenciamento de assinatura
+
+### 🔄 **PRÓXIMOS PASSOS**
+1. **Configurar Stripe recorrente** no Dashboard
+2. **Implementar handlers reais** dos webhooks  
+3. **Testar fluxo completo** de upgrade
+4. **Adicionar UsageIndicator ao Header** principal
+5. **Deploy e teste em produção**
+
+### 📊 **ARQUITETURA DE CRÉDITOS**
+```typescript
+// 1 crédito = $0.01
+const models = {
+  'claude-3-5-sonnet': { input: 3.00, output: 15.00 },
+  'claude-3-5-haiku': { input: 0.25, output: 1.25 },
+  'gpt-4o': { input: 5.00, output: 15.00 },
+  'gpt-4o-mini': { input: 0.15, output: 0.60 }
+};
+
+// Free: 5 interações/dia
+// Pro: 500 créditos/mês (~$5 de uso AI)
+```
+
+### 🎯 **FEATURES IMPLEMENTADAS**
+- [x] Rate limiting inteligente baseado em custos reais
+- [x] Sistema de créditos transparente  
+- [x] UI/UX otimizada para conversão
+- [x] Controle granular de features
+- [x] Histórico e analytics de uso
+- [x] Upgrade flows integrados
+- [x] WebSocket rate limiting em tempo real
