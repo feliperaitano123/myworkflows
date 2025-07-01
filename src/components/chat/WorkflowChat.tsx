@@ -12,9 +12,10 @@ import { useChatValidation } from '@/hooks/useChatValidation';
 interface WorkflowChatProps {
   workflowId: string;
   onClearChatRef?: React.MutableRefObject<(() => void) | undefined>;
+  onStatusChange?: (status: { color: 'green' | 'red' | 'yellow'; message: string }) => void;
 }
 
-const ChatContent: React.FC<{ workflowId: string; onClearChatRef?: React.MutableRefObject<(() => void) | undefined> }> = ({ workflowId, onClearChatRef }) => {
+const ChatContent: React.FC<{ workflowId: string; onClearChatRef?: React.MutableRefObject<(() => void) | undefined>; onStatusChange?: (status: { color: 'green' | 'red' | 'yellow'; message: string }) => void }> = ({ workflowId, onClearChatRef, onStatusChange }) => {
   const { messages, sendMessage, clearChat, isConnected, isLoadingHistory } = useChat();
   const { workflows, syncWorkflowNames } = useWorkflowsContext();
   
@@ -42,6 +43,26 @@ const ChatContent: React.FC<{ workflowId: string; onClearChatRef?: React.Mutable
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
   }, [messages, isAiThinking]);
+
+  // Auto-scroll quando histórico termina de carregar
+  useEffect(() => {
+    if (!isLoadingHistory && messages.length > 0) {
+      // Pequeno delay para garantir que o DOM foi atualizado
+      setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }, 100);
+    }
+  }, [isLoadingHistory, messages.length]);
+
+  // Comunicar mudanças de status para a página
+  useEffect(() => {
+    if (onStatusChange) {
+      onStatusChange({
+        color: chatValidation.statusColor,
+        message: chatValidation.statusMessage
+      });
+    }
+  }, [chatValidation.statusColor, chatValidation.statusMessage, onStatusChange]);
 
   const handleSendMessage = (content: string, contexts?: any[]) => {
     // Prepare structured data for backend
@@ -98,15 +119,15 @@ const ChatContent: React.FC<{ workflowId: string; onClearChatRef?: React.Mutable
       {/* Área de mensagens - Flexible height */}
       <div className="flex-1 overflow-y-auto min-h-0">
         <div className="p-4 space-y-4 chat-messages">
-          {isLoadingHistory ? (
+          {isLoadingHistory || chatValidation.isValidating ? (
             <div className="flex items-center justify-center h-full">
               <div className="text-muted-foreground flex items-center gap-2">
                 <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                Carregando histórico...
+                {chatValidation.isValidating ? 'Verificando workflow...' : 'Carregando histórico...'}
               </div>
             </div>
           ) : messages.length === 0 ? (
-            <WelcomeScreen />
+            <WelcomeScreen onSuggestionClick={(suggestion) => handleSendMessage(suggestion)} />
           ) : (
             <>
               {messages.map(message => (
@@ -154,11 +175,12 @@ const ChatContent: React.FC<{ workflowId: string; onClearChatRef?: React.Mutable
 
 export const WorkflowChat: React.FC<WorkflowChatProps> = ({ 
   workflowId,
-  onClearChatRef
+  onClearChatRef,
+  onStatusChange
 }) => {
   return (
     <ChatProvider workflowId={workflowId}>
-      <ChatContent workflowId={workflowId} onClearChatRef={onClearChatRef} />
+      <ChatContent workflowId={workflowId} onClearChatRef={onClearChatRef} onStatusChange={onStatusChange} />
     </ChatProvider>
   );
 };

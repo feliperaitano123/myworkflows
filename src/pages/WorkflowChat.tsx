@@ -2,13 +2,14 @@ import React, { useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Header } from '@/components/Header';
 import { useWorkflowsContext } from '@/contexts/WorkflowContext';
-import { MessageSquare } from 'lucide-react';
+import { MessageSquare, ExternalLink } from 'lucide-react';
 import { useAlert } from '@/components/AlertProvider';
 import { WorkflowChat as WorkflowChatComponent } from '@/components/chat/WorkflowChat';
 import { useWorkflowActions } from '@/hooks/useWorkflowActions';
 import { DeleteWorkflowModal } from '@/components/DeleteWorkflowModal';
-import { useChatValidation } from '@/hooks/useChatValidation';
 import { ChatProvider } from '@/contexts/ChatContext';
+import { CopyButton } from '@/components/ui/copy-button';
+import { useConnections } from '@/hooks/useConnections';
 
 // Componente interno que usa o ChatProvider
 const WorkflowChatContent: React.FC<{ workflowId: string }> = ({ workflowId }) => {
@@ -19,12 +20,16 @@ const WorkflowChatContent: React.FC<{ workflowId: string }> = ({ workflowId }) =
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const clearChatRef = useRef<(() => void) | undefined>();
+  const { data: connections } = useConnections();
   
   // Encontrar workflow atual
   const currentWorkflow = workflows.find(w => w.id === workflowId);
+  const n8nWorkflowId = currentWorkflow?.workflowId;
+  const connection = connections?.find(conn => conn.id === currentWorkflow?.connectionId);
+  const n8nUrl = connection?.n8n_url;
 
-  // Hook de validação do chat (precisa estar dentro do ChatProvider)
-  const chatValidation = useChatValidation(workflowId);
+  // Estado para o status do chat (recebido do componente de chat)
+  const [chatStatus, setChatStatus] = useState({ color: 'yellow' as 'green' | 'red' | 'yellow', message: 'Inicializando...' });
 
   // Log para debug
   React.useEffect(() => {
@@ -109,19 +114,35 @@ const WorkflowChatContent: React.FC<{ workflowId: string }> = ({ workflowId }) =
       {/* Header */}
       <Header
         title={currentWorkflow.name}
-        subtitle="AI-powered workflow conversation"
+        subtitle={
+          n8nWorkflowId && n8nUrl ? (
+            <div className="flex items-center gap-2 group">
+              <span className="font-mono text-xs text-muted-foreground">#{n8nWorkflowId}</span>
+              <CopyButton content={n8nWorkflowId} className="opacity-60 group-hover:opacity-100" size="sm" />
+              <a
+                href={`${n8nUrl}/workflow/${n8nWorkflowId}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="opacity-60 group-hover:opacity-100 hover:text-primary transition-colors"
+                title="Abrir workflow no n8n em nova aba"
+              >
+                <ExternalLink className="h-4 w-4" />
+              </a>
+            </div>
+          ) : null
+        }
         workflowSettings={{
           onClearChat: handleClearChat,
           onDeleteWorkflow: handleDeleteWorkflow,
         }}
         chatStatus={{
-          color: chatValidation.statusColor,
-          message: chatValidation.statusMessage,
+          color: chatStatus.color,
+          message: chatStatus.message,
         }}
       />
       {/* Chat Component */}
       <div className="flex-1 min-h-0">
-        <WorkflowChatComponent workflowId={workflowId!} onClearChatRef={clearChatRef} />
+        <WorkflowChatComponent workflowId={workflowId!} onClearChatRef={clearChatRef} onStatusChange={setChatStatus} />
       </div>
 
       {/* Delete Workflow Modal */}

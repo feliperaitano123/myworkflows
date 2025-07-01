@@ -1,6 +1,6 @@
 import { useWorkflowsContext } from '@/contexts/WorkflowContext';
 import { useChat } from '@/contexts/ChatContext';
-import { useState, useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 interface ValidationStep {
   id: string;
@@ -29,20 +29,28 @@ interface ChatValidationStatus {
 export const useChatValidation = (workflowId: string): ChatValidationStatus => {
   const { getWorkflowStatus, isSyncing, workflows } = useWorkflowsContext();
   const { isConnected } = useChat();
-  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  
+  // Delay inicial para evitar modal prematuro (tanto no refresh quanto na mudança de workflow)
+  const [isInitializing, setIsInitializing] = useState(true);
+  
+  useEffect(() => {
+    // Aguardar 2 segundos antes de permitir modais (tempo para sistema se estabilizar)
+    setIsInitializing(true);
+    
+    const timer = setTimeout(() => {
+      setIsInitializing(false);
+    }, 2000);
+    
+    return () => clearTimeout(timer);
+  }, [workflowId]); // Reset delay quando workflow muda
 
   // Converter System ID para n8n ID
   // workflowId é o System ID (UUID), mas getWorkflowStatus espera o n8n ID
   const currentWorkflow = workflows.find(w => w.id === workflowId);
   const n8nWorkflowId = currentWorkflow?.workflowId; // Este é o n8n ID
   
-  console.log(`🔧 useChatValidation ID mapping:`);
-  console.log(`   System ID (input): ${workflowId}`);
-  console.log(`   Found workflow:`, currentWorkflow ? 'YES' : 'NO');
-  console.log(`   n8n ID (mapped): ${n8nWorkflowId}`);
   
   const workflowStatus = n8nWorkflowId ? getWorkflowStatus(n8nWorkflowId) : 'unknown';
-  console.log(`   Final status: ${workflowStatus}`);
   const workflowExists = workflowStatus === 'exists';
   const websocketConnected = isConnected;
   const isValidating = isSyncing && workflowStatus === 'unknown';
@@ -72,27 +80,28 @@ export const useChatValidation = (workflowId: string): ChatValidationStatus => {
     {
       id: 'websocket-connection',
       name: 'Verificar conexão WebSocket',
-      status: websocketConnected ? 'success' : 'error',
+      status: websocketConnected ? 'success' : 
+              isValidating ? 'checking' : 'pending', // Não reportar erro por desconexão natural
       message: websocketConnected ? 
                'Conexão WebSocket estabelecida com sucesso' :
-               'Falha na conexão WebSocket com o servidor de chat',
-      recommendation: !websocketConnected ? 
-                      'Verifique sua conexão com a internet e tente recarregar a página' :
-                      undefined
+               isValidating ? 
+               'Aguardando conexão WebSocket...' :
+               'WebSocket desconectado (aguardando reconexão)',
+      recommendation: undefined // Não mostrar recomendação para desconexões naturais
     },
     {
       id: 'connection-health',
       name: 'Verificar saúde da conexão n8n',
-      status: !currentWorkflow ? 'error' :
+      status: !currentWorkflow ? (isValidating ? 'checking' : 'error') :
               currentWorkflow.connection?.active === false ? 'error' : 'success',
       message: !currentWorkflow ? 
-               'Workflow não encontrado no sistema' :
+               (isValidating ? 'Aguardando dados do workflow...' : 'Workflow não encontrado no sistema') :
                currentWorkflow.connection?.active === false ?
                'Conexão n8n está marcada como inativa' :
                'Conexão n8n está ativa e funcional',
-      recommendation: !currentWorkflow ? 
+      recommendation: !currentWorkflow && !isValidating ? 
                       'Verifique se o workflow foi importado corretamente' :
-                      currentWorkflow.connection?.active === false ?
+                      currentWorkflow?.connection?.active === false ?
                       'Vá para "Minhas Conexões" e verifique o status da sua conexão n8n' :
                       undefined
     }
@@ -106,29 +115,22 @@ export const useChatValidation = (workflowId: string): ChatValidationStatus => {
 
   if (isValidating) {
     overallStatus = 'validating';
-    showModal = true; // Sempre mostrar modal durante validação
+    showModal = false; // NÃO mostrar modal durante validação - usar loader do chat
   } else if (isValid) {
     overallStatus = 'success';
-    showModal = showSuccessModal; // Mostrar modal de sucesso temporariamente
-  } else if (hasErrors) {
+    showModal = false; // NÃO mostrar modal de sucesso - chat funciona normalmente
+  } else if (hasErrors && !isValidating) {
+    // APENAS mostrar modal quando há erros REAIS (após validação completa)
+    // Só mostrar se não está validando E tem erro confirmado E passou do delay inicial
+    const hasConfirmedError = workflowStatus === 'missing' ||
+                             (currentWorkflow?.connection?.active === false);
     overallStatus = 'error';
-    showModal = true; // Mostrar modal quando há erros
+    showModal = hasConfirmedError && !isInitializing; // Não mostrar modal durante delay inicial
   } else {
     overallStatus = 'error';
     showModal = false; // Estados intermediários não mostram modal
   }
 
-  // Efeito para mostrar modal de sucesso temporariamente
-  useEffect(() => {
-    if (isValid && !isValidating) {
-      setShowSuccessModal(true);
-      const timer = setTimeout(() => {
-        setShowSuccessModal(false);
-      }, 2000); // Fechar após 2 segundos
-      
-      return () => clearTimeout(timer);
-    }
-  }, [isValid, isValidating]);
 
   // Determinar mensagem e cor do status (para compatibilidade)
   let statusMessage: string;
