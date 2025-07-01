@@ -1,0 +1,19 @@
+# Nixpacks configuration for Railway
+providers = ["node"]
+
+[phases.setup]
+nixPkgs = ["nodejs-18_x"]
+
+[phases.install]
+cmds = ["npm ci --legacy-peer-deps"]
+
+[phases.build]
+cmds = [
+    "echo '==> Building frontend'",
+    "npm run build",
+    "echo '==> Building server'",
+    "cd server && npm ci --legacy-peer-deps && npm run build"
+]
+
+[start]
+cmd = "npm start"

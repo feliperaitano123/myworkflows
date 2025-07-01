@@ -61,22 +61,24 @@ MyWorkflows é um micro-SaaS que oferece um agente de IA especializado em ajudar
 
 ```bash
 # Development
-npm run dev          # Start dev server on port 8080
+npm run dev          # Start frontend dev server on port 8080
+npm run dev:server   # Start backend dev server (API + WebSocket)
+npm run dev:all      # Start both frontend and backend concurrently
 
-# Build & Preview
-npm run build        # Production build
-npm run build:dev    # Development build
-npm run preview      # Preview production build
+# Build & Deploy
+npm run build        # Build frontend only
+npm run build:server # Build backend only
+npm run build:all    # Build everything (for Railway)
+npm start           # Start production server
 
 # Code Quality
 npm run lint         # Run ESLint
 
-# Backend Services (separate terminals)
-cd server && npm run dev  # API Server (port 3002) + WebSocket (port 3001)
-npm run dev              # Frontend dev server on port 8080
-
 # Testing
 node server/test-websocket.js  # Test WebSocket connection and chat flow
+
+# Railway Deploy
+git push origin main  # Auto-deploy to Railway
 
 # Workflow Management
 # - Use sync button in sidebar to update workflow names from n8n
@@ -638,51 +640,65 @@ node test-api.js
 ```
 Tests: executions, sync, auth
 
-### Deployment Architecture
+### Deployment Architecture (Railway)
 
-#### Services Required
-1. **Frontend**: Static hosting (Vercel, Netlify, etc.)
-2. **WebSocket Server**: Node.js server on port 3001
-3. **REST API Server**: Express server on port 3002
-4. **Database**: Supabase (managed PostgreSQL)
-5. **AI Service**: OpenRouter API
-6. **Workflow API**: n8n instances (customer-provided)
-7. **Payment Processing**: Stripe (webhooks, customer portal)
+#### Single Service Deployment
+MyWorkflows é deployado como uma aplicação monolítica no Railway:
+- **Frontend + Backend**: Single Node.js service
+- **WebSocket + API**: Mesma porta (configurável)
+- **Static Files**: Servidos pelo Express em produção
+- **Auto-deploy**: Push to main = deploy automático
 
-#### Environment Variables
+#### Services & Infrastructure
+1. **Railway App**: Frontend + Backend + WebSocket (tudo em um)
+2. **Database**: Supabase (managed PostgreSQL)
+3. **AI Service**: OpenRouter API
+4. **Workflow API**: n8n instances (customer-provided)
+5. **Payment Processing**: Stripe (webhooks, customer portal)
+
+#### Environment Variables (Railway)
 ```env
-# Frontend (.env)
-VITE_SUPABASE_URL=https://xxx.supabase.co
-VITE_SUPABASE_ANON_KEY=xxx
-
-# Backend (server/.env)
+# Supabase
 SUPABASE_URL=https://xxx.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=xxx
 SUPABASE_ANON_KEY=xxx
+
+# OpenRouter AI
 OPENROUTER_API_KEY=sk-or-v1-xxx
+
+# Security
 JWT_SECRET=xxx
+
+# Server Config
 PORT=3001
 API_PORT=3002
-NODE_ENV=development
+NODE_ENV=production
 
-# Stripe Integration
+# Stripe (opcional)
 STRIPE_PUBLISHABLE_KEY=pk_live_xxx
 STRIPE_SECRET_KEY=sk_live_xxx
 STRIPE_WEBHOOK_SECRET=whsec_xxx
 ```
 
+#### Production URLs
+- **App**: `https://myworkflows.railway.app`
+- **API**: `https://myworkflows.railway.app/api/*`
+- **WebSocket**: `wss://myworkflows.railway.app`
+
+#### Railway Configuration Files
+- `railway.json`: Deploy configuration
+- `nixpacks.toml`: Build configuration
+- `package.json`: Scripts (build:all, start)
+
 #### Production Checklist
-- [ ] Configure CORS for production domains
-- [ ] Enable HTTPS on all services
-- [ ] Setup PM2 for process management
-- [ ] Configure nginx reverse proxy
-- [ ] Setup monitoring and alerts
+- [x] Railway auto-deploy from main branch
+- [x] HTTPS enabled by default (Railway)
+- [x] WebSocket support native (Railway)
+- [x] Environment variables configured
 - [ ] Enable Supabase RLS policies
-- [ ] Configure rate limiting
-- [ ] Setup backup strategy
 - [ ] Configure Stripe webhooks
 - [ ] Test billing flows end-to-end
-- [ ] Setup plan management admin tools
+- [ ] Setup monitoring (Railway metrics)
 
 ### Future Roadmap
 

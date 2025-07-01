@@ -541,7 +541,7 @@ Você tem acesso a ferramentas que podem:
         ws.send(JSON.stringify(assistantSavedMessage));
 
         // REGISTRAR USO APÓS PROCESSAMENTO COMPLETO
-        const inputTokensUsed = estimateTokenCount(message.content);
+        const inputTokensUsed = estimateTokenCount(userMessage);
         const actualCreditsUsed = this.calculateActualCredits(inputTokensUsed, outputTokens, model);
         
         console.log(`💳 Registrando uso - Input: ${inputTokensUsed}, Output: ${outputTokens}, Créditos: ${actualCreditsUsed}`);

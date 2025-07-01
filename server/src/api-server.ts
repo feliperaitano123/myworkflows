@@ -4,6 +4,7 @@ import { validateJWT } from './auth/jwt';
 import { getN8nClient } from './n8n/n8n-client';
 import { rateLimiter } from './middleware/rateLimiter';
 import { createClient } from '@supabase/supabase-js';
+import { setupStaticServer } from './static-server';
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
@@ -23,9 +24,13 @@ export class APIServer {
   }
 
   private setupMiddleware(): void {
-    // CORS configuration
+    // CORS configuration for production and development
+    const allowedOrigins = process.env.NODE_ENV === 'production' 
+      ? [process.env.FRONTEND_URL || 'https://myworkflows.railway.app']
+      : ['http://localhost:8080', 'http://localhost:3000'];
+      
     this.app.use(cors({
-      origin: ['http://localhost:8080', 'http://localhost:3000'], // Frontend URLs
+      origin: allowedOrigins,
       credentials: true
     }));
 
@@ -392,9 +397,17 @@ export class APIServer {
 
   public start(): Promise<void> {
     return new Promise((resolve) => {
+      // In production, serve the frontend static files
+      if (process.env.NODE_ENV === 'production') {
+        setupStaticServer(this.app);
+      }
+      
       this.server = this.app.listen(this.port, () => {
         console.log(`🚀 API Server running on port ${this.port}`);
         console.log(`🔗 Health check: http://localhost:${this.port}/health`);
+        if (process.env.NODE_ENV === 'production') {
+          console.log(`📂 Serving static files from dist/`);
+        }
         resolve();
       });
     });
