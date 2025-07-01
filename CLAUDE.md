@@ -25,6 +25,34 @@ MyWorkflows é um micro-SaaS que oferece um agente de IA especializado em ajudar
 8. Visualiza histórico completo de conversas por workflow
 9. Acompanha uso de tokens e custos (base para cobrança)
 
+## Regras de Desenvolvimento com Claude Code
+
+**7 Rules of Claude**
+
+1. **Analisar e Planejar**: First, think about the problem, read through the codebase to find the relevant files, and write a plan in `tasks/todo.md`.
+
+2. **Criar Checklist**: The plan should include a checklist of tasks that can be marked as completed.
+
+3. **Revisar com o Usuário**: Before starting any work, contact me and I'll review the plan.
+
+4. **Executar com Acompanhamento**: Then, start working on the tasks, checking them off as you go.
+
+5. **Explicação Detalhada**: At every step, just give me a detailed explanation of the changes you made.
+
+6. **Simplicidade em Primeiro Lugar**: Make each task and code change as simple as possible. We want to avoid massive or complex changes. Every change should affect the codebase as little as possible. It all comes down to simplicity.
+
+7. **Documentar Resultado**: Finally, add a review section to the `tasks/todo.md` file with a summary of the changes made and any other relevant information.
+
+### Workflow de Desenvolvimento
+
+1. **Leitura do Código**: Sempre comece lendo os arquivos relevantes para entender o contexto
+2. **Planejamento**: Crie um plano detalhado em `tasks/todo.md` 
+3. **Aprovação**: Aguarde aprovação antes de iniciar implementação
+4. **Implementação Incremental**: Execute uma tarefa por vez, marcando como concluída
+5. **Documentação**: Mantenha registro detalhado de todas as mudanças
+6. **Simplicidade**: Prefira mudanças pequenas e incrementais
+7. **Review Final**: Documente o resultado e impacto das mudanças
+
 ## Tech Stack
 
 ### Frontend
@@ -873,16 +901,18 @@ node server/webhook-simulator-simple.js subscription
 📦 Response: {"received":true}
 ```
 
-### ⚠️ **PENDING - Production Setup**
+### ⚠️ **PENDING - Production Setup** (Sistema 95% Completo)
 - [ ] **Configurar webhook endpoint real**: No Stripe Dashboard para produção
 - [ ] **Testar fluxo completo**: End-to-end checkout em staging
 
 ### 🔄 **PRÓXIMOS PASSOS**
 1. **Configurar webhook endpoint** no Stripe Dashboard para produção
 2. **Testar fluxo completo** de upgrade end-to-end  
-3. **Adicionar UsageIndicator ao Header** principal
+3. **Adicionar UsageIndicator ao Header** principal (componente criado mas não visível)
 4. **Deploy e teste em produção**
 5. **Setup monitoring** para webhook failures
+
+**Nota**: Todo o sistema de billing está implementado e testado localmente. Faltam apenas as configurações finais do Stripe em produção e adicionar o indicador de uso no header.
 
 ### 📊 **ARQUITETURA DE CRÉDITOS**
 ```typescript
