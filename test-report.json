@@ -1,0 +1,91 @@
+{
+  "timestamp": "2025-07-01T18:17:09.316Z",
+  "summary": {
+    "total": 16,
+    "passed": 13,
+    "failed": 3,
+    "successRate": 81.3
+  },
+  "tests": [
+    {
+      "name": "API Server Health Check",
+      "passed": false,
+      "details": "request to http://localhost:3002/health failed, reason: read ECONNRESET"
+    },
+    {
+      "name": "WebSocket Connection",
+      "passed": true,
+      "details": "Connected successfully"
+    },
+    {
+      "name": "Build System",
+      "passed": true,
+      "details": "Build completed successfully"
+    },
+    {
+      "name": "Protected Endpoint Security",
+      "passed": true,
+      "details": "Status: 401"
+    },
+    {
+      "name": "JWT Token Validation",
+      "passed": true,
+      "details": "Invalid token rejected: 401"
+    },
+    {
+      "name": "GET /health",
+      "passed": true,
+      "details": "Expected: 200, Got: 200"
+    },
+    {
+      "name": "GET /api/billing/plans",
+      "passed": true,
+      "details": "Expected: 401, Got: 401"
+    },
+    {
+      "name": "GET /api/usage/status",
+      "passed": true,
+      "details": "Expected: 401, Got: 401"
+    },
+    {
+      "name": "GET /nonexistent",
+      "passed": true,
+      "details": "Expected: 404, Got: 404"
+    },
+    {
+      "name": "Billing Webhook Endpoint",
+      "passed": true,
+      "details": "Webhook endpoint accessible: 400"
+    },
+    {
+      "name": "Billing Plans Endpoint Structure",
+      "passed": true,
+      "details": "Endpoint properly protected"
+    },
+    {
+      "name": "Component Files Structure",
+      "passed": true,
+      "details": "Found 85 component files"
+    },
+    {
+      "name": "TypeScript Compilation",
+      "passed": true,
+      "details": "No type errors found"
+    },
+    {
+      "name": "ESLint Validation",
+      "passed": false,
+      "details": "Linting errors detected"
+    },
+    {
+      "name": "WebSocket Chat Flow",
+      "passed": false,
+      "details": "Chat flow timeout"
+    },
+    {
+      "name": "Database Connection Health",
+      "passed": true,
+      "details": "Database endpoints responding"
+    }
+  ]
+}

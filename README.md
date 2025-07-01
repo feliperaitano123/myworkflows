@@ -49,8 +49,8 @@ npm install
 cd server && npm install && cd ..
 
 # Setup environment variables
-cp .env.example .env
-# Edit .env with your credentials
+cp .env.example server/.env
+# Edit server/.env with your credentials (see .env.example for details)
 
 # Start development servers
 npm run dev:all

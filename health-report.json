@@ -1,0 +1,61 @@
+{
+  "overall": "degraded",
+  "components": {
+    "API Server": {
+      "status": "healthy",
+      "details": "Response: 12ms",
+      "timestamp": "2025-07-01T18:16:42.825Z"
+    },
+    "WebSocket Server": {
+      "status": "healthy",
+      "details": "API server running (WS likely up)",
+      "timestamp": "2025-07-01T18:16:42.827Z"
+    },
+    "Database Connection": {
+      "status": "healthy",
+      "details": "Auth-protected endpoint responding: 3ms",
+      "timestamp": "2025-07-01T18:16:42.830Z"
+    },
+    "Authentication System": {
+      "status": "healthy",
+      "details": "Properly rejecting unauthenticated requests",
+      "timestamp": "2025-07-01T18:16:42.831Z"
+    },
+    "Billing Webhooks": {
+      "status": "healthy",
+      "details": "Webhook endpoint properly validating signatures",
+      "timestamp": "2025-07-01T18:16:42.878Z"
+    },
+    "Stripe Integration": {
+      "status": "warning",
+      "details": "No Stripe API key found",
+      "timestamp": "2025-07-01T18:16:42.878Z"
+    },
+    "API Performance": {
+      "status": "healthy",
+      "details": "Average response: 2.0ms",
+      "timestamp": "2025-07-01T18:16:42.885Z"
+    },
+    "Memory Usage": {
+      "status": "healthy",
+      "details": "9.6MB used",
+      "timestamp": "2025-07-01T18:16:42.885Z"
+    },
+    "Supabase Connection": {
+      "status": "warning",
+      "details": "No Supabase URL configured",
+      "timestamp": "2025-07-01T18:16:42.885Z"
+    },
+    "OpenRouter API": {
+      "status": "warning",
+      "details": "No OpenRouter API key",
+      "timestamp": "2025-07-01T18:16:42.885Z"
+    },
+    "Environment Variables": {
+      "status": "unhealthy",
+      "details": "Missing 4 required vars",
+      "timestamp": "2025-07-01T18:16:42.885Z"
+    }
+  },
+  "timestamp": "2025-07-01T18:16:42.709Z"
+}
