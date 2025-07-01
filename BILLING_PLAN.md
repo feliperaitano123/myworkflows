@@ -776,42 +776,75 @@ billingRoutes.post('/webhook', express.raw({ type: 'application/json' }), async 
 ```typescript
 // server/src/services/stripeHandlers.ts
 async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
-  const userId = session.metadata.user_id;
-  const planType = session.metadata.plan_type;
+  const sessionId = session.id;
+  const userId = session.metadata?.userId;
+  const planType = session.metadata?.planType;
   
-  // Atualiza perfil do usuário
-  await supabase
-    .from('user_profiles')
-    .update({
-      plan_type: planType,
-      stripe_subscription_id: session.subscription,
-      subscription_status: 'active',
-      updated_at: new Date().toISOString()
-    })
-    .eq('user_id', userId);
-  
-  // Reseta créditos para plano Pro
-  if (planType === 'pro') {
-    await supabase
-      .from('user_usage')
-      .update({
-        monthly_credits_used: 0,
-        monthly_credits_limit: 500,
-        credits_reset_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
-      })
-      .eq('user_id', userId);
+  // Validação
+  if (!userId || !planType) {
+    console.error('❌ [WEBHOOK] Missing metadata in session');
+    return;
   }
   
-  // Registra evento
-  await supabase
-    .from('billing_events')
-    .insert({
-      user_id: userId,
-      event_type: 'subscription_created',
-      stripe_event_id: session.id,
-      amount_cents: session.amount_total,
-      status: 'completed'
-    });
+  // Retry mechanism para garantir sucesso
+  const maxAttempts = 3;
+  let attempt = 0;
+  
+  while (attempt < maxAttempts) {
+    try {
+      // Atualiza perfil do usuário
+      const { error: profileError } = await supabase
+        .from('user_profiles')
+        .update({
+          plan_type: planType,
+          stripe_subscription_id: session.subscription,
+          subscription_status: 'active',
+          updated_at: new Date().toISOString()
+        })
+        .eq('user_id', userId);
+      
+      if (profileError) throw profileError;
+      
+      // Reseta créditos para plano Pro
+      if (planType === 'pro') {
+        const { error: usageError } = await supabase
+          .from('user_usage')
+          .update({
+            monthly_credits_used: 0,
+            monthly_credits_limit: 500,
+            credits_reset_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+          })
+          .eq('user_id', userId);
+        
+        if (usageError) throw usageError;
+      }
+      
+      // Registra evento
+      await supabase
+        .from('billing_events')
+        .insert({
+          user_id: userId,
+          event_type: 'subscription_created',
+          stripe_event_id: session.id,
+          amount_cents: session.amount_total,
+          status: 'completed'
+        });
+      
+      console.log(`✅ [WEBHOOK] User ${userId} upgraded to ${planType} successfully`);
+      break; // Sucesso, sai do loop
+      
+    } catch (error) {
+      attempt++;
+      console.error(`❌ [WEBHOOK] Attempt ${attempt} failed:`, error);
+      
+      if (attempt < maxAttempts) {
+        await new Promise(resolve => setTimeout(resolve, 5000)); // Aguarda 5s
+      } else {
+        console.error(`❌ [WEBHOOK] Failed after ${maxAttempts} attempts`);
+        // TODO: Adicionar notificação para admin
+      }
+    }
+  }
 }
 
 async function handleSubscriptionUpdate(subscription: Stripe.Subscription) {

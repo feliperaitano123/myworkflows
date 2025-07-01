@@ -532,13 +532,14 @@ Private: / (dashboard), /connections, /library, /settings, /workflow/:id
    - React Query para cache e loading states
    - UI expansível com popover
 
-6. **Sistema de Planos e Billing** (🚧 Em Desenvolvimento)
+6. **Sistema de Planos e Billing** (✅ Implementado)
    - **Planos**: Free (5 interações/dia) e Pro ($20/mês, 500 créditos)
    - **Rate Limiting**: Sistema completo de controle de uso
    - **Stripe Integration**: Checkout, webhooks e customer portal
    - **Créditos Baseados em Custo Real**: Cálculo dinâmico por modelo AI
    - **UI/UX Otimizada**: Modals de upgrade e indicadores de uso
    - **Admin Tools**: Gestão de planos e ajustes de créditos
+   - **Webhook System**: Sistema robusto com retry e logging detalhado
    - **Documentação**: BILLING_PLAN.md com implementação completa
 
 ### Current Limitations
@@ -569,6 +570,8 @@ Private: / (dashboard), /connections, /library, /settings, /workflow/:id
 - ✅ **Fixed**: Tool calls display in chat history
 - ✅ **Fixed**: System ID vs n8n ID mapping in chat validation
 - ✅ **Fixed**: Manual workflow validation requirement
+- ✅ **Fixed**: Rate limit user_profiles undefined error
+- ✅ **Fixed**: Webhook handler silent failures
 - WebSocket reconnection can be flaky on poor connections
 - Large workflows (>100 nodes) may cause performance issues
 - No offline support or message queueing
@@ -903,3 +906,30 @@ const models = {
 - [x] Histórico e analytics de uso
 - [x] Upgrade flows integrados
 - [x] WebSocket rate limiting em tempo real
+- [x] Sistema completo de manutenção automatizada
+- [x] Health checks e monitoring
+- [x] Scripts de auditoria de código
+
+### 🛠️ **SISTEMA DE MANUTENÇÃO**
+
+#### Scripts Disponíveis
+```bash
+npm run health        # Verifica saúde do sistema
+npm run audit         # Auditoria de código e dependencies
+npm run test:auto     # Testes automatizados
+npm run maintenance   # Manutenção completa
+npm run check:all     # Executa todos os checks
+```
+
+#### Rotina Recomendada
+- **Diário**: `npm run health` (2 min)
+- **Semanal**: `npm run maintenance` (8 min)
+- **Mensal**: Análise profunda com audit completo
+
+#### Relatórios Gerados
+- `health-report.json` - Status de saúde
+- `audit-report.json` - Análise de código
+- `test-report.json` - Resultados de testes
+- `maintenance-report.json` - Relatório consolidado
+
+Consulte `MAINTENANCE_GUIDE.md` para detalhes completos.

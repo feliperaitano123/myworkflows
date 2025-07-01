@@ -5,20 +5,12 @@
       "args": [
         "-y",
         "@supabase/mcp-server-supabase@latest",
+        "--read-only",
         "--project-ref=knalxzxpfajwcjnbvfhe"
       ],
       "env": {
-        "SUPABASE_ACCESS_TOKEN": "${SUPABASE_ACCESS_TOKEN}"
+        "SUPABASE_ACCESS_TOKEN": "sbp_5560fa338af689389976f5ce7229b787b6b9222f"
       }
-    },
-    "stripe": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@stripe/mcp",
-        "--tools=all",
-        "--api-key=sk_test_51Rg3bhGaw3aSGzhhKsZT2dioGBkLzvGBJRqpUXQ5XXvRgH70RTWvEbdx53AvllKkPCHNUbqwWNmYOhXMb2pHR8lG00LiW9qY5e"
-      ]
     }
   }
 }

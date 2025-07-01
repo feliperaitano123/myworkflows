@@ -12,7 +12,12 @@
     "build:all": "npm run build && npm run build:server",
     "start": "cd server && npm start",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "audit": "node scripts/audit-app.js",
+    "test:auto": "node scripts/test-all.js",
+    "health": "node scripts/health-check.js",
+    "maintenance": "node scripts/maintenance.js",
+    "check:all": "npm run health && npm run audit && npm run test:auto"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",

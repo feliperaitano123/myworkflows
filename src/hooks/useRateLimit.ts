@@ -13,9 +13,7 @@ interface UserUsage {
   credits_reset_at: string | null;
   total_interactions: number;
   total_tokens_used: number;
-  user_profiles: {
-    plan_type: 'free' | 'pro';
-  };
+  plan_type: 'free' | 'pro'; // Agora plan_type vem diretamente no objeto
 }
 
 interface RateLimitStatus {
@@ -68,9 +66,10 @@ export const useRateLimit = () => {
       return { canSend: true, remaining: 0 };
     }
 
-    const profile = limits.user_profiles;
+    // Backend agora retorna plan_type diretamente no objeto, não em user_profiles
+    const planType = limits.plan_type || 'free';
     
-    if (profile.plan_type === 'free') {
+    if (planType === 'free') {
       const remaining = 5 - limits.daily_interactions;
       const resetAt = limits.daily_reset_at ? new Date(limits.daily_reset_at) : undefined;
       
@@ -98,7 +97,7 @@ export const useRateLimit = () => {
     queryClient.invalidateQueries({ queryKey: ['rate-limits'] });
   }, [queryClient]);
 
-  const isPro = limits?.user_profiles?.plan_type === 'pro';
+  const isPro = limits?.plan_type === 'pro';
 
   return {
     limits,
