@@ -245,6 +245,44 @@ N8nAPIClient.getWorkflowExecutions() → n8n API (/api/v1/executions)
   - `nodes_count`: Integer
   - `created_at`, `updated_at`: Timestamps
 
+#### Billing & Plans Tables
+- **user_profiles**: Extended user profile with billing info
+  - `id`: UUID primary key
+  - `user_id`: FK to auth.users
+  - `plan_type`: 'free' | 'pro'
+  - `stripe_customer_id`: Stripe customer reference
+  - `stripe_subscription_id`: Active subscription
+  - `subscription_status`: Current status
+  - `created_at`, `updated_at`: Timestamps
+
+- **user_usage**: Usage tracking and limits
+  - `id`: UUID primary key
+  - `user_id`: FK to auth.users
+  - `daily_interactions`: Free plan usage
+  - `monthly_credits_used`: Pro plan usage
+  - `monthly_credits_limit`: Pro plan limit
+  - `daily_reset_at`: Next reset time
+  - `total_interactions`, `total_tokens_used`: Lifetime stats
+
+- **plan_configs**: Dynamic plan configuration
+  - `plan_type`: Plan identifier
+  - `config`: JSONB with limits and features
+  - `stripe_product_id`, `stripe_price_id`: Stripe references
+  - `price_cents`: Plan price
+
+- **usage_logs**: Detailed usage tracking
+  - `user_id`: FK to auth.users
+  - `action_type`: 'chat_interaction', 'tool_execution', etc
+  - `model_used`: AI model identifier
+  - `input_tokens`, `output_tokens`: Token usage
+  - `credits_used`: Credits consumed
+
+- **billing_events**: Stripe event tracking
+  - `user_id`: FK to auth.users
+  - `event_type`: Stripe event type
+  - `stripe_event_id`: Stripe reference
+  - `amount_cents`: Payment amount
+
 #### Chat System Tables
 - **chat_sessions**: Chat session management
   - `id`: UUID primary key
@@ -492,14 +530,18 @@ Private: / (dashboard), /connections, /library, /settings, /workflow/:id
    - React Query para cache e loading states
    - UI expansível com popover
 
-6. **Pagamentos** (❌ Não Implementado)
-   - Integração com Stripe pendente
-   - **Preparado**: Sistema de tracking de tokens para cobrança
+6. **Sistema de Planos e Billing** (🚧 Em Desenvolvimento)
+   - **Planos**: Free (5 interações/dia) e Pro ($20/mês, 500 créditos)
+   - **Rate Limiting**: Sistema completo de controle de uso
+   - **Stripe Integration**: Checkout, webhooks e customer portal
+   - **Créditos Baseados em Custo Real**: Cálculo dinâmico por modelo AI
+   - **UI/UX Otimizada**: Modals de upgrade e indicadores de uso
+   - **Admin Tools**: Gestão de planos e ajustes de créditos
+   - **Documentação**: BILLING_PLAN.md com implementação completa
 
 ### Current Limitations
 
 #### Not Implemented
-- **Payment System**: Stripe integration pending (tracking ready)
 - **Template Library**: Workflow templates not implemented
 - **File Uploads**: Supabase Storage not configured
 - **Email Notifications**: No email system integrated
@@ -605,6 +647,7 @@ Tests: executions, sync, auth
 4. **Database**: Supabase (managed PostgreSQL)
 5. **AI Service**: OpenRouter API
 6. **Workflow API**: n8n instances (customer-provided)
+7. **Payment Processing**: Stripe (webhooks, customer portal)
 
 #### Environment Variables
 ```env
@@ -621,6 +664,11 @@ JWT_SECRET=xxx
 PORT=3001
 API_PORT=3002
 NODE_ENV=development
+
+# Stripe Integration
+STRIPE_PUBLISHABLE_KEY=pk_live_xxx
+STRIPE_SECRET_KEY=sk_live_xxx
+STRIPE_WEBHOOK_SECRET=whsec_xxx
 ```
 
 #### Production Checklist
@@ -632,16 +680,24 @@ NODE_ENV=development
 - [ ] Enable Supabase RLS policies
 - [ ] Configure rate limiting
 - [ ] Setup backup strategy
+- [ ] Configure Stripe webhooks
+- [ ] Test billing flows end-to-end
+- [ ] Setup plan management admin tools
 
 ### Future Roadmap
 
-#### Phase 1: Production Launch
-- [ ] Implement Stripe payments
-- [ ] Create onboarding flow
+#### Phase 1: Billing System Launch (4 semanas)
+- [x] Plan billing system architecture (BILLING_PLAN.md)
+- [ ] Implement database schema for billing
+- [ ] Create rate limiting system
+- [ ] Integrate Stripe payment processing
+- [ ] Build upgrade modals and UI
 - [ ] Setup monitoring/alerting
 - [ ] Add API documentation
 
 #### Phase 2: Enhanced Features
+- [ ] Annual billing plans (20% discount)
+- [ ] Business plan ($49/mês, 1500 créditos)
 - [ ] Workflow templates library
 - [ ] Collaborative workflows
 - [ ] Advanced tool system
@@ -650,9 +706,11 @@ NODE_ENV=development
 - [ ] Documents API
 
 #### Phase 3: Scale & Optimize
+- [ ] Enterprise plan (custom pricing)
+- [ ] Credit add-ons marketplace
 - [ ] Multi-region deployment
 - [ ] Redis caching layer
 - [ ] GraphQL API
-- [ ] Advanced analytics
+- [ ] Advanced analytics dashboard
 - [ ] Team workspaces
 - [ ] Workflow versioning

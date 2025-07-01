@@ -77,7 +77,8 @@ export interface ClearChatRequest {
 
 export interface WSChatMessage {
   type: 'token' | 'complete' | 'error' | 'connected' | 'history' | 'message_saved' | 'tool_message' | 
-        'ai_thinking' | 'tool_start' | 'tool_progress' | 'tool_complete' | 'ai_responding' | 'process_step';
+        'ai_thinking' | 'tool_start' | 'tool_progress' | 'tool_complete' | 'ai_responding' | 'process_step' |
+        'rate_limit_error';
   content?: string;
   sessionId?: string;
   error?: string;
@@ -96,5 +97,11 @@ export interface WSChatMessage {
     content?: string;
     toolName?: string;
     duration?: number;
+  };
+  rateLimitInfo?: {
+    reason?: string;
+    resetAt?: Date;
+    remainingCredits?: number;
+    upgradeUrl?: string;
   };
 }

@@ -4,6 +4,7 @@ import { validateJWT, extractTokenFromRequest } from './auth/jwt';
 import { OpenRouterBridge } from './openrouter-bridge';
 import { ChatSessionManager } from './chat/session-manager';
 import { getMCPClient } from './mcp/mcp-client';
+import { rateLimiter } from './middleware/rateLimiter';
 
 // Função auxiliar para estimar tokens de forma mais precisa
 function estimateTokenCount(text: string): number {
@@ -220,6 +221,33 @@ export class AIWebSocketServer {
     try {
       console.log(`📨 Mensagem recebida do usuário ${session.userId}: "${message.content}"`);
       console.log(`🎯 Modelo a ser usado: "${message.model || 'padrão: anthropic/claude-3-haiku'}"`);
+      
+      // 0. VERIFICAR RATE LIMITS ANTES DE PROCESSAR
+      const estimatedCredits = this.estimateCreditsForMessage(message);
+      console.log(`💳 Verificando rate limits - créditos estimados: ${estimatedCredits}`);
+      
+      const limitCheck = await rateLimiter.checkUserLimits(session.userId, estimatedCredits);
+      
+      if (!limitCheck.allowed) {
+        console.log(`❌ Rate limit atingido para usuário ${session.userId}: ${limitCheck.reason}`);
+        
+        const rateLimitMessage: WSChatMessage = {
+          type: 'rate_limit_error',
+          error: 'Rate limit atingido',
+          rateLimitInfo: {
+            reason: limitCheck.reason,
+            resetAt: limitCheck.resetAt,
+            remainingCredits: limitCheck.remainingCredits,
+            upgradeUrl: limitCheck.upgradeUrl
+          },
+          sessionId: session.sessionId
+        };
+        
+        ws.send(JSON.stringify(rateLimitMessage));
+        return;
+      }
+      
+      console.log(`✅ Rate limit OK - créditos restantes: ${limitCheck.remainingCredits}`);
       
       // 1. Buscar ou criar sessão de chat no banco
       let chatSessionId = session.chatSessionId;
@@ -511,6 +539,28 @@ Você tem acesso a ferramentas que podem:
           sessionId: session.sessionId
         };
         ws.send(JSON.stringify(assistantSavedMessage));
+
+        // REGISTRAR USO APÓS PROCESSAMENTO COMPLETO
+        const inputTokensUsed = estimateTokenCount(message.content);
+        const actualCreditsUsed = this.calculateActualCredits(inputTokensUsed, outputTokens, model);
+        
+        console.log(`💳 Registrando uso - Input: ${inputTokensUsed}, Output: ${outputTokens}, Créditos: ${actualCreditsUsed}`);
+        
+        await rateLimiter.recordUsage(
+          session.userId,
+          actualCreditsUsed,
+          inputTokensUsed + outputTokens,
+          {
+            action_type: 'chat_interaction',
+            model_used: model,
+            workflow_id: workflowId,
+            session_id: chatSessionId,
+            message_id: assistantMessageId,
+            input_tokens: inputTokensUsed,
+            output_tokens: outputTokens,
+            response_time_ms: responseTime
+          }
+        );
       }
 
     } catch (error) {
@@ -554,6 +604,67 @@ Você tem acesso a ferramentas que podem:
       activeSessions: this.activeSessions.size,
       uptime: process.uptime()
     };
+  }
+
+  // Método para estimar créditos baseado na mensagem e modelo
+  private estimateCreditsForMessage(message: ChatMessageRequest): number {
+    const inputTokens = estimateTokenCount(message.content);
+    const model = message.model || 'anthropic/claude-3-haiku';
+    
+    // Estimativa de tokens de output baseada no input (normalmente 1:1 a 2:1)
+    const estimatedOutputTokens = Math.ceil(inputTokens * 1.5);
+    
+    // Tabela de custos por modelo (baseada no OpenRouter)
+    const modelCosts = {
+      'anthropic/claude-3-5-sonnet': { inputPer1M: 3.00, outputPer1M: 15.00 },
+      'anthropic/claude-3-5-haiku': { inputPer1M: 0.25, outputPer1M: 1.25 },
+      'openai/gpt-4o': { inputPer1M: 5.00, outputPer1M: 15.00 },
+      'openai/gpt-4o-mini': { inputPer1M: 0.15, outputPer1M: 0.60 },
+      'deepseek/deepseek-coder': { inputPer1M: 0.14, outputPer1M: 0.28 },
+      'meta-llama/llama-3.1-70b-instruct': { inputPer1M: 0.52, outputPer1M: 0.75 },
+      'meta-llama/llama-3.1-405b-instruct': { inputPer1M: 2.70, outputPer1M: 2.70 },
+      'wizardlm/wizardcoder-33b': { inputPer1M: 0.70, outputPer1M: 0.70 }
+    };
+    
+    // Default para Claude Haiku se modelo não encontrado
+    const costs = modelCosts[model as keyof typeof modelCosts] || modelCosts['anthropic/claude-3-5-haiku'];
+    
+    // Calcular custo em USD
+    const inputCost = (inputTokens / 1000000) * costs.inputPer1M;
+    const outputCost = (estimatedOutputTokens / 1000000) * costs.outputPer1M;
+    const totalCost = inputCost + outputCost;
+    
+    // Converter para créditos (1 crédito = $0.01)
+    const credits = Math.ceil(totalCost * 100);
+    
+    console.log(`💰 Estimativa de custo - Modelo: ${model}, Input: ${inputTokens} tokens, Output estimado: ${estimatedOutputTokens} tokens, Custo: $${totalCost.toFixed(4)}, Créditos: ${credits}`);
+    
+    return Math.max(credits, 1); // Mínimo 1 crédito
+  }
+
+  // Método para calcular créditos reais baseado nos tokens realmente usados
+  private calculateActualCredits(inputTokens: number, outputTokens: number, model: string): number {
+    // Usar a mesma tabela de custos
+    const modelCosts = {
+      'anthropic/claude-3-5-sonnet': { inputPer1M: 3.00, outputPer1M: 15.00 },
+      'anthropic/claude-3-5-haiku': { inputPer1M: 0.25, outputPer1M: 1.25 },
+      'openai/gpt-4o': { inputPer1M: 5.00, outputPer1M: 15.00 },
+      'openai/gpt-4o-mini': { inputPer1M: 0.15, outputPer1M: 0.60 },
+      'deepseek/deepseek-coder': { inputPer1M: 0.14, outputPer1M: 0.28 },
+      'meta-llama/llama-3.1-70b-instruct': { inputPer1M: 0.52, outputPer1M: 0.75 },
+      'meta-llama/llama-3.1-405b-instruct': { inputPer1M: 2.70, outputPer1M: 2.70 },
+      'wizardlm/wizardcoder-33b': { inputPer1M: 0.70, outputPer1M: 0.70 }
+    };
+    
+    const costs = modelCosts[model as keyof typeof modelCosts] || modelCosts['anthropic/claude-3-5-haiku'];
+    
+    const inputCost = (inputTokens / 1000000) * costs.inputPer1M;
+    const outputCost = (outputTokens / 1000000) * costs.outputPer1M;
+    const totalCost = inputCost + outputCost;
+    
+    const credits = Math.ceil(totalCost * 100);
+    
+    return Math.max(credits, 1); // Mínimo 1 crédito
   }
 
   // Método para shutdown graceful

@@ -1,10 +1,14 @@
 import React, { useState, useRef, KeyboardEvent } from 'react';
-import { Send, Plus, ArrowUp } from 'lucide-react';
+import { Send, Plus, ArrowUp, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
 import { ModelSelector } from './ModelSelector';
 import { ContextPopover, ContextItem } from './ContextPopover';
 import { ContextTag } from './ContextTag';
+import { useRateLimit } from '@/hooks/useRateLimit';
+import { UpgradeModal } from '@/components/UpgradeModal';
+import { toast } from '@/hooks/use-toast';
 
 interface ChatInputProps {
   onSend: (message: string, contexts?: ContextItem[]) => void;
@@ -25,19 +29,40 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const [selectedContexts, setSelectedContexts] = useState<ContextItem[]>([]);
   const [showContextPopover, setShowContextPopover] = useState(false);
   const [cursorPosition, setCursorPosition] = useState(0);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  
+  const { checkCanSendMessage, isPro, limits } = useRateLimit();
 
   const handleSend = () => {
-    if (message.trim() && !disabled) {
-      onSend(message.trim(), selectedContexts);
-      setMessage('');
-      setSelectedContexts([]);
-      
-      // Reset textarea height
-      if (textareaRef.current) {
-        textareaRef.current.style.height = 'auto';
-        textareaRef.current.focus();
-      }
+    if (!message.trim() || disabled) return;
+    
+    // Verificar rate limits
+    const status = checkCanSendMessage();
+    
+    if (!status.canSend) {
+      setShowUpgradeModal(true);
+      return;
+    }
+    
+    // Aviso se for última mensagem gratuita
+    if (status.isLastMessage && !isPro) {
+      toast({
+        title: "Atenção!",
+        description: "Esta é sua última mensagem gratuita hoje!",
+        variant: "default"
+      });
+    }
+    
+    // Processa mensagem normalmente
+    onSend(message.trim(), selectedContexts);
+    setMessage('');
+    setSelectedContexts([]);
+    
+    // Reset textarea height
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      textareaRef.current.focus();
     }
   };
 
@@ -178,11 +203,49 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           </Button>
         </div>
         
-        {/* Footer text */}
-        <div className="mt-2 text-xs text-muted-foreground text-center">
-          Press Enter to send, Shift+Enter for new line
+        {/* Footer text with rate limit info */}
+        <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
+          <span>Press Enter to send, Shift+Enter for new line</span>
+          
+          {/* Rate limit indicator */}
+          {limits && (
+            <div className="flex items-center gap-2">
+              {isPro ? (
+                <span>
+                  {(limits.monthly_credits_limit - limits.monthly_credits_used).toLocaleString()} créditos restantes
+                </span>
+              ) : (
+                <div className="flex items-center gap-1">
+                  {checkCanSendMessage().canSend ? (
+                    <span className="text-green-600">
+                      {checkCanSendMessage().remaining}/5 mensagens hoje
+                    </span>
+                  ) : (
+                    <div className="flex items-center gap-1">
+                      <AlertTriangle className="w-3 h-3 text-red-500" />
+                      <span className="text-red-600">Limite atingido</span>
+                      <Badge 
+                        variant="secondary" 
+                        className="ml-1 text-xs cursor-pointer hover:bg-blue-100"
+                        onClick={() => setShowUpgradeModal(true)}
+                      >
+                        Upgrade Pro
+                      </Badge>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
+      
+      {/* Upgrade Modal */}
+      <UpgradeModal
+        isOpen={showUpgradeModal}
+        onClose={() => setShowUpgradeModal(false)}
+        trigger="daily_limit"
+      />
     </div>
   );
 };
